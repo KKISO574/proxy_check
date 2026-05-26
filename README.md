@@ -76,7 +76,14 @@ runtime/bin/mihomo
 
 ## 前端开发
 
-前端在 `frontend/`，要求 Node.js 18+。
+前端在 `frontend/`，要求 Node.js 24+。如果本机默认 Node 版本较低，建议用 nvm：
+
+```bash
+cd frontend
+nvm install
+nvm use
+node --version
+```
 
 ```bash
 cd frontend

@@ -28,6 +28,13 @@ def test_load_clash_nodes_deduplicates_static_proxies(tmp_path):
     assert nodes[1].type == "vmess"
 
 
+def test_load_clash_nodes_ignores_non_mapping_yaml(tmp_path):
+    config = tmp_path / "config.yaml"
+    config.write_text("proxies:null\n", encoding="utf-8")
+
+    assert load_clash_nodes(config) == []
+
+
 def test_build_runtime_config_injects_controller_and_listeners(tmp_path):
     source = tmp_path / "source.yaml"
     output = tmp_path / "runtime" / "config.yaml"
@@ -62,4 +69,3 @@ def test_build_runtime_config_injects_controller_and_listeners(tmp_path):
     assert data["listeners"][0]["type"] == "mixed"
     assert data["listeners"][0]["proxy"] == "node-a"
     assert data["listeners"][1]["port"] == 20001
-

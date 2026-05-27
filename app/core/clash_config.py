@@ -23,6 +23,9 @@ def load_clash_nodes(config_path: str | Path) -> list[ClashNode]:
     with path.open("r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh) or {}
 
+    if not isinstance(data, dict):
+        return []
+
     proxies = data.get("proxies")
     if not isinstance(proxies, list):
         return []
@@ -88,4 +91,3 @@ def build_runtime_config(
     with out.open("w", encoding="utf-8") as fh:
         yaml.safe_dump(data, fh, allow_unicode=True, sort_keys=False)
     return port_map
-

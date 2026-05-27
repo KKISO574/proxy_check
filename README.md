@@ -76,13 +76,20 @@ runtime/bin/mihomo
 
 ## 前端开发
 
-前端在 `frontend/`，要求 Node.js 24+。如果本机默认 Node 版本较低，建议用 nvm：
+前端在 `frontend/`，要求 Node.js 22.12+ 和 npm 10.9+。如果本机默认 Node/npm 版本较低，建议用 nvm 切到 Node 22：
 
 ```bash
 cd frontend
-nvm install
+nvm install 22
 nvm use
 node --version
+npm --version
+```
+
+本机如果同时存在多个 npm，优先使用 Node 22 这一组：
+
+```bash
+PATH=/opt/homebrew/opt/node@22/bin:$PATH npm run build
 ```
 
 ```bash

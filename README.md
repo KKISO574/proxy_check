@@ -112,6 +112,12 @@ export MIHOMO_SECRET="your_secret"
 docker compose up -d --build
 ```
 
+如果要把外网端口改成 `3456`：
+
+```bash
+APP_PORT=3456 docker compose up -d --build
+```
+
 访问：
 
 - 页面：`http://127.0.0.1:8000/`

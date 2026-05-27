@@ -106,6 +106,10 @@ async def _rebuild_legacy_nodes_table(conn) -> None:
         return
 
     await conn.execute(text("ALTER TABLE nodes RENAME TO nodes_legacy"))
+    for index in indexes:
+        index_name = index["name"]
+        if not str(index_name).startswith("sqlite_autoindex"):
+            await conn.execute(text(f"DROP INDEX {index_name}"))
     await conn.run_sync(Base.metadata.tables["nodes"].create)
     now = utcnow().isoformat()
     await conn.execute(

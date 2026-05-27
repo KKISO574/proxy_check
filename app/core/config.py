@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -83,5 +84,4 @@ def load_settings(config_path: str | Path = "configs/config.yaml") -> Settings:
 
 @lru_cache
 def get_settings() -> Settings:
-    return load_settings()
-
+    return load_settings(os.environ.get("PROXY_CHECK_CONFIG", "configs/config.yaml"))

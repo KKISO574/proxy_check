@@ -86,7 +86,12 @@ def candidate_names(goos: str, arch: str, version: str) -> list[str]:
             ]
         )
     elif goos == "linux" and arch == "arm64":
-        names.append(f"mihomo-linux-arm64-{version}.gz")
+        names.extend(
+            [
+                f"mihomo-linux-arm64-compatible-{version}.gz",
+                f"mihomo-linux-arm64-{version}.gz",
+            ]
+        )
     else:
         names.append(f"mihomo-{goos}-{arch}-{version}.gz")
     return names

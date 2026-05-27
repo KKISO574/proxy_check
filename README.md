@@ -74,6 +74,68 @@ runtime/bin/mihomo
 
 `runtime/` 默认不提交到 Git 仓库，避免把不同平台的大二进制文件推上去。远端机器需要运行同一个脚本下载对应平台版本。
 
+## Docker 部署
+
+Docker 部署会在镜像里构建前端并运行 FastAPI 后端。Mihomo 二进制、SQLite 数据库和运行时文件通过宿主机目录挂载，方便本地和远端分别使用不同平台的 Mihomo。
+
+准备 Docker 容器使用的 Mihomo。注意 Docker 容器里运行的是 Linux 二进制，即使宿主机是 macOS，也不要把 macOS 版 Mihomo 挂进容器。
+
+```bash
+# Linux x86_64 远端或 amd64 容器
+python3 scripts/download_mihomo.py --os linux --arch amd64 --version v1.19.24
+
+# Linux arm64 容器
+python3 scripts/download_mihomo.py --os linux --arch arm64 --version v1.19.24
+```
+
+准备 Clash/Mihomo 节点配置。默认 compose 会读取：
+
+```text
+configs/clash.yaml
+```
+
+也可以用环境变量指定其他路径：
+
+```bash
+export CLASH_CONFIG_PATH=/absolute/path/to/clash.yaml
+```
+
+设置 Mihomo 控制器 secret：
+
+```bash
+export MIHOMO_SECRET="your_secret"
+```
+
+启动：
+
+```bash
+docker compose up -d --build
+```
+
+访问：
+
+- 页面：`http://127.0.0.1:8000/`
+- API：`http://127.0.0.1:8000/api`
+- 文档：`http://127.0.0.1:8000/docs`
+
+查看日志：
+
+```bash
+docker compose logs -f proxy-check
+```
+
+停止：
+
+```bash
+docker compose down
+```
+
+Docker 使用 [configs/config.docker.yaml](/Users/celia/Github/proxy_check/configs/config.docker.yaml:1)，默认路径如下：
+
+- Mihomo：`/app/runtime/bin/mihomo`
+- Clash 配置：`/app/configs/clash.yaml`
+- SQLite：`/app/data/proxy_check.sqlite3`
+
 ## 前端开发
 
 前端在 `frontend/`，要求 Node.js 22.12+ 和 npm 10.9+。如果本机默认 Node/npm 版本较低，建议用 nvm 切到 Node 22：

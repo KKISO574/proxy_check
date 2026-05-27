@@ -1,0 +1,18 @@
+services:
+  proxy-check:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proxy-check
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      MIHOMO_SECRET: ${MIHOMO_SECRET:-proxy_check_secret}
+      PROXY_CHECK_CONFIG: /app/configs/config.yaml
+    volumes:
+      - ./configs/config.docker.yaml:/app/configs/config.yaml:ro
+      - ./data:/app/data
+      - ./runtime:/app/runtime
+      - ${CLASH_CONFIG_PATH:-./configs/clash.yaml}:/app/configs/clash.yaml:ro
+

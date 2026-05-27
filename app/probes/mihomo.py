@@ -21,6 +21,7 @@ class MihomoManager:
         self.process: asyncio.subprocess.Process | None = None
         self.runtime_config_path = Path(settings.mihomo.work_dir) / "config.yaml"
         self.listener_ports: dict[str, int] = {}
+        self.active_config_path: str | None = None
 
     @property
     def controller_base_url(self) -> str:
@@ -31,42 +32,90 @@ class MihomoManager:
     def secret(self) -> str:
         return os.environ.get(self.settings.mihomo.secret_env, "")
 
-    async def prepare(self) -> None:
+    async def prepare(
+        self,
+        source_config_path: str | None = None,
+        listener_ports: dict[str, int] | None = None,
+        listener_port_start: int | None = None,
+    ) -> None:
         cfg = self.settings.mihomo
-        if not cfg.source_config_path:
+        config_path = source_config_path or cfg.source_config_path
+        if not config_path:
             raise MihomoUnavailable("mihomo.source_config_path is not configured")
-        if not Path(cfg.source_config_path).exists():
-            raise MihomoUnavailable(f"source config not found: {cfg.source_config_path}")
+        if not Path(config_path).exists():
+            raise MihomoUnavailable(f"source config not found: {config_path}")
         if not self.secret:
             raise MihomoUnavailable(f"environment variable {cfg.secret_env} is not set")
 
-        nodes = load_clash_nodes(cfg.source_config_path)
+        nodes = load_clash_nodes(config_path)
+        if listener_ports:
+            port_map = {node.name: listener_ports[node.name] for node in nodes if node.name in listener_ports}
+        else:
+            start = listener_port_start or cfg.listener_port_start
+            port_map = {node.name: start + index for index, node in enumerate(nodes)}
         self.listener_ports = build_runtime_config(
-            cfg.source_config_path,
+            config_path,
             self.runtime_config_path,
             controller_host=cfg.controller_host,
             controller_port=cfg.controller_port,
             secret=self.secret,
             listener_host=cfg.listener_host,
-            listener_start_port=cfg.listener_port_start,
-            node_names=[node.name for node in nodes],
+            listener_ports=port_map,
         )
+        self.active_config_path = str(config_path)
 
-    async def start(self) -> None:
+    async def start(
+        self,
+        source_config_path: str | None = None,
+        listener_ports: dict[str, int] | None = None,
+        listener_port_start: int | None = None,
+    ) -> None:
         cfg = self.settings.mihomo
         if not cfg.bin:
             raise MihomoUnavailable("mihomo.bin is not configured")
         if not Path(cfg.bin).exists():
             raise MihomoUnavailable(f"mihomo binary not found: {cfg.bin}")
-        await self.prepare()
-        if self.process and self.process.returncode is None:
+        config_path = str(source_config_path or cfg.source_config_path)
+        if (
+            self.process
+            and self.process.returncode is None
+            and self.active_config_path == config_path
+        ):
             return
+        if self.process and self.process.returncode is None:
+            await self.stop()
+        await self.prepare(source_config_path, listener_ports, listener_port_start)
         self.process = await asyncio.create_subprocess_exec(
             cfg.bin,
             "-f",
             str(self.runtime_config_path),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+        )
+        await self._wait_ready()
+
+    async def _wait_ready(self, *, attempts: int = 30, interval_seconds: float = 0.1) -> None:
+        endpoint = f"{self.controller_base_url}/version"
+        request_timeout = aiohttp.ClientTimeout(total=interval_seconds)
+        headers = {"Authorization": f"Bearer {self.secret}"} if self.secret else {}
+        last_error: BaseException | None = None
+        async with aiohttp.ClientSession(timeout=request_timeout, headers=headers) as session:
+            for _ in range(attempts):
+                if self.process is not None and self.process.returncode is not None:
+                    raise MihomoUnavailable(
+                        f"mihomo exited before ready (rc={self.process.returncode})"
+                    )
+                try:
+                    async with session.get(endpoint) as response:
+                        if response.status == 200:
+                            return
+                except Exception as exc:  # network errors, timeouts
+                    last_error = exc
+                await asyncio.sleep(interval_seconds)
+        total_seconds = attempts * interval_seconds
+        detail = f": {last_error}" if last_error else ""
+        raise MihomoUnavailable(
+            f"controller not ready within {total_seconds:.1f}s{detail}"
         )
 
     async def stop(self) -> None:

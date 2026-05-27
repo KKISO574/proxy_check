@@ -1,13 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  CirclePause,
   Gauge,
+  Pencil,
+  Plus,
   RefreshCw,
   Search,
   Server,
+  Trash2,
   XCircle
 } from "lucide-react";
 import {
@@ -20,15 +24,21 @@ import {
   YAxis
 } from "recharts";
 import {
+  createTask,
+  deleteTask,
   fetchHistory,
   fetchNode,
   fetchNodes,
   fetchStats,
+  fetchTasks,
+  MonitorTask,
   NodeDetail,
   NodeItem,
   ProbePoint,
-  runTests,
-  Stats
+  refreshTask,
+  runTask,
+  Stats,
+  updateTask
 } from "./api";
 import "./styles.css";
 
@@ -70,6 +80,33 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function IconButton({
+  label,
+  children,
+  onClick,
+  disabled,
+  tone
+}: {
+  label: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  tone?: "danger";
+}) {
+  return (
+    <button
+      className={`icon-button ${tone ?? ""}`}
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+}
+
 function MetricCard({
   icon,
   label,
@@ -92,12 +129,148 @@ function MetricCard({
   );
 }
 
-function EmptyState() {
+function TaskSidebar({
+  tasks,
+  selectedTaskId,
+  onSelect,
+  onCreate,
+  onRefresh,
+  busyTaskId
+}: {
+  tasks: MonitorTask[];
+  selectedTaskId: number | null;
+  onSelect: (id: number) => void;
+  onCreate: () => void;
+  onRefresh: (id: number) => void;
+  busyTaskId: number | null;
+}) {
+  return (
+    <aside className="task-sidebar">
+      <div className="brand">
+        <div className="brand-mark">
+          <Activity size={20} />
+        </div>
+        <div>
+          <h1>Proxy Check</h1>
+          <p>节点质量检测平台</p>
+        </div>
+      </div>
+      <button className="add-task" type="button" onClick={onCreate}>
+        <Plus size={16} />
+        导入配置 URL
+      </button>
+      <div className="task-list">
+        {tasks.length === 0 ? (
+          <div className="task-empty">暂无监测任务</div>
+        ) : (
+          tasks.map((task) => (
+            <button
+              className={`task-item ${selectedTaskId === task.id ? "active" : ""}`}
+              key={task.id}
+              type="button"
+              onClick={() => onSelect(task.id)}
+            >
+              <span className={`task-dot dot-${task.enabled ? task.status : "paused"}`} />
+              <span className="task-copy">
+                <strong>{task.name}</strong>
+                <small>
+                  {task.enabled ? statusLabel(task.status) : "已暂停"} · {task.node_count} 节点
+                </small>
+              </span>
+              <span
+                className="task-refresh"
+                title="刷新配置"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRefresh(task.id);
+                }}
+              >
+                <RefreshCw size={14} className={busyTaskId === task.id ? "spin" : ""} />
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function TaskForm({
+  task,
+  onSubmit,
+  onCancel,
+  saving
+}: {
+  task: MonitorTask | null;
+  onSubmit: (values: { name: string; source_url: string; interval_seconds: number }) => Promise<void>;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const [name, setName] = useState(task?.name ?? "");
+  const [sourceUrl, setSourceUrl] = useState(task?.source_url ?? "");
+  const [interval, setInterval] = useState(`${task?.interval_seconds ?? 60}`);
+
+  useEffect(() => {
+    setName(task?.name ?? "");
+    setSourceUrl(task?.source_url ?? "");
+    setInterval(`${task?.interval_seconds ?? 60}`);
+  }, [task]);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    await onSubmit({
+      name: name.trim(),
+      source_url: sourceUrl.trim(),
+      interval_seconds: Math.max(10, Number(interval) || 60)
+    });
+  }
+
+  return (
+    <form className="task-form" onSubmit={handleSubmit}>
+      <div className="form-grid">
+        <label>
+          <span>任务名称</span>
+          <input value={name} onChange={(event) => setName(event.target.value)} required />
+        </label>
+        <label className="url-field">
+          <span>Clash 配置 URL</span>
+          <input
+            value={sourceUrl}
+            onChange={(event) => setSourceUrl(event.target.value)}
+            placeholder="https://example.com/clash.yaml"
+            required
+          />
+        </label>
+        <label>
+          <span>检测间隔</span>
+          <input
+            min={10}
+            step={10}
+            type="number"
+            value={interval}
+            onChange={(event) => setInterval(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="form-actions">
+        <button className="ghost-button" type="button" onClick={onCancel}>
+          取消
+        </button>
+        <button className="primary-button" type="submit" disabled={saving}>
+          <RefreshCw size={16} className={saving ? "spin" : ""} />
+          {task ? "保存任务" : "导入任务"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function EmptyState({ hasTask }: { hasTask: boolean }) {
   return (
     <div className="empty-state">
       <Server size={28} />
-      <strong>暂无节点</strong>
-      <span>配置 Clash/Mihomo YAML 后，平台会在下一轮检测时同步节点。</span>
+      <strong>{hasTask ? "暂无节点" : "暂无监测任务"}</strong>
+      <span>{hasTask ? "刷新配置后会同步 Clash YAML 中的节点。" : "导入 Clash/Mihomo YAML URL 后开始监测。"}</span>
     </div>
   );
 }
@@ -105,13 +278,15 @@ function EmptyState() {
 function NodeTable({
   nodes,
   selectedId,
-  onSelect
+  onSelect,
+  hasTask
 }: {
   nodes: NodeItem[];
   selectedId: number | null;
   onSelect: (node: NodeItem) => void;
+  hasTask: boolean;
 }) {
-  if (nodes.length === 0) return <EmptyState />;
+  if (nodes.length === 0) return <EmptyState hasTask={hasTask} />;
   return (
     <div className="table-wrap">
       <table>
@@ -159,15 +334,7 @@ function NodeTable({
   );
 }
 
-function ChartPanel({
-  title,
-  points,
-  color
-}: {
-  title: string;
-  points: ProbePoint[];
-  color: string;
-}) {
+function ChartPanel({ title, points, color }: { title: string; points: ProbePoint[]; color: string }) {
   const data = points.map((point) => ({
     time: formatTime(point.created_at),
     latency: point.success ? point.latency_ms : null,
@@ -186,14 +353,14 @@ function ChartPanel({
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#d7dee8" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#dde6ef" />
               <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={24} />
               <YAxis tick={{ fontSize: 11 }} width={52} />
               <Tooltip
                 contentStyle={{
-                  border: "1px solid #d7dee8",
-                  borderRadius: 6,
-                  boxShadow: "0 10px 24px rgba(15, 23, 42, 0.12)"
+                  border: "1px solid #d8e2ec",
+                  borderRadius: 8,
+                  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)"
                 }}
               />
               <Line
@@ -228,65 +395,65 @@ function DetailPane({
   range: RangeFilter;
   onRangeChange: (range: RangeFilter) => void;
 }) {
-  if (!selected) {
-    return (
-      <aside className="detail-pane">
-        <div className="detail-placeholder">选择一个节点查看历史折线和错误记录</div>
-      </aside>
-    );
-  }
-
   return (
     <aside className="detail-pane">
-      <div className="detail-header">
-        <div>
-          <h2>{selected.name}</h2>
-          <p>
-            {selected.type ?? "unknown"} · listener {selected.listener_port ?? "-"}
-          </p>
-        </div>
-        <StatusBadge status={selected.status} />
-      </div>
+      {!selected ? (
+        <div className="detail-placeholder">选择节点查看趋势和错误</div>
+      ) : (
+        <>
+          <div className="detail-header">
+            <div>
+              <h2>{selected.name}</h2>
+              <p>
+                {selected.type ?? "unknown"} · listener {selected.listener_port ?? "-"}
+              </p>
+            </div>
+            <StatusBadge status={selected.status} />
+          </div>
 
-      <div className="range-tabs">
-        {(["1h", "6h", "24h", "7d", "30d"] as RangeFilter[]).map((item) => (
-          <button
-            key={item}
-            className={range === item ? "active" : ""}
-            onClick={() => onRangeChange(item)}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
+          <div className="range-tabs">
+            {(["1h", "6h", "24h", "7d", "30d"] as RangeFilter[]).map((item) => (
+              <button
+                key={item}
+                className={range === item ? "active" : ""}
+                onClick={() => onRangeChange(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
 
-      <ChartPanel title="真延迟" points={delayHistory} color="#2563eb" />
-      <ChartPanel title="tcping" points={tcpHistory} color="#059669" />
+          <ChartPanel title="真延迟" points={delayHistory} color="#16a34a" />
+          <ChartPanel title="tcping" points={tcpHistory} color="#2563eb" />
 
-      <section className="error-panel">
-        <div className="panel-title">
-          <h3>最近错误</h3>
-          <span>{detail?.recent_errors.length ?? 0}</span>
-        </div>
-        <div className="error-list">
-          {detail?.recent_errors.length ? (
-            detail.recent_errors.map((error, index) => (
-              <div className="error-row" key={`${error.created_at}-${index}`}>
-                <span>{formatTime(error.created_at)}</span>
-                <strong>{error.metric}</strong>
-                <p>{error.error ?? "unknown error"}</p>
-              </div>
-            ))
-          ) : (
-            <div className="muted">暂无错误记录</div>
-          )}
-        </div>
-      </section>
+          <section className="error-panel">
+            <div className="panel-title">
+              <h3>最近错误</h3>
+              <span>{detail?.recent_errors.length ?? 0}</span>
+            </div>
+            <div className="error-list">
+              {detail?.recent_errors.length ? (
+                detail.recent_errors.map((error, index) => (
+                  <div className="error-row" key={`${error.created_at}-${index}`}>
+                    <span>{formatTime(error.created_at)}</span>
+                    <strong>{error.metric}</strong>
+                    <p>{error.error ?? "unknown error"}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="muted">暂无错误记录</div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </aside>
   );
 }
 
 function App() {
+  const [tasks, setTasks] = useState<MonitorTask[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [nodes, setNodes] = useState<NodeItem[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -299,16 +466,34 @@ function App() {
   const [range, setRange] = useState<RangeFilter>("24h");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingTask, setEditingTask] = useState<MonitorTask | null>(null);
+  const [savingTask, setSavingTask] = useState(false);
+  const [busyTaskId, setBusyTaskId] = useState<number | null>(null);
 
-  async function loadOverview(autoSelect = false) {
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+  async function loadTasks(nextSelectedId = selectedTaskId) {
+    const nextTasks = await fetchTasks();
+    setTasks(nextTasks);
+    if (nextTasks.length === 0) {
+      setSelectedTaskId(null);
+      return null;
+    }
+    const stillExists = nextTasks.some((task) => task.id === nextSelectedId);
+    const nextId = stillExists ? nextSelectedId : nextTasks[0].id;
+    setSelectedTaskId(nextId);
+    return nextId;
+  }
+
+  async function loadOverview(taskId = selectedTaskId) {
     try {
-      const [nextNodes, nextStats] = await Promise.all([fetchNodes(), fetchStats()]);
+      const [nextNodes, nextStats] = await Promise.all([fetchNodes(taskId), fetchStats(taskId)]);
       setNodes(nextNodes);
       setStats(nextStats);
       setError(null);
-      if (autoSelect && nextNodes.length > 0) {
-        setSelectedId(nextNodes[0].id);
+      if (!nextNodes.some((node) => node.id === selectedId)) {
+        setSelectedId(nextNodes[0]?.id ?? null);
       }
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
@@ -317,17 +502,30 @@ function App() {
     }
   }
 
+  async function loadAll() {
+    try {
+      const taskId = await loadTasks();
+      await loadOverview(taskId);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    void loadOverview(true);
-    const timer = window.setInterval(() => void loadOverview(), 15000);
+    void loadAll();
+    const timer = window.setInterval(() => void loadAll(), 15000);
     return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    if (selectedId === null && nodes.length > 0) {
-      setSelectedId(nodes[0].id);
-    }
-  }, [nodes, selectedId]);
+    setSelectedId(null);
+    setDetail(null);
+    setDelayHistory([]);
+    setTcpHistory([]);
+    setLoading(true);
+    void loadOverview(selectedTaskId);
+  }, [selectedTaskId]);
 
   useEffect(() => {
     if (selectedId === null) return;
@@ -370,70 +568,148 @@ function App() {
 
   const selected = nodes.find((node) => node.id === selectedId) ?? null;
 
-  async function handleRun() {
-    setRunning(true);
+  async function handleTaskSubmit(values: { name: string; source_url: string; interval_seconds: number }) {
+    setSavingTask(true);
     try {
-      await runTests();
-      await loadOverview();
+      const response = editingTask
+        ? await updateTask(editingTask.id, values)
+        : await createTask({ ...values, enabled: true });
+      setShowForm(false);
+      setEditingTask(null);
+      await loadTasks(response.task.id);
+      await loadOverview(response.task.id);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
     } finally {
-      setRunning(false);
+      setSavingTask(false);
+    }
+  }
+
+  async function handleRunTask() {
+    if (!selectedTaskId) return;
+    setBusyTaskId(selectedTaskId);
+    try {
+      await runTask(selectedTaskId);
+      await loadAll();
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  async function handleRefreshTask(taskId: number) {
+    setBusyTaskId(taskId);
+    try {
+      await refreshTask(taskId);
+      await loadTasks(taskId);
+      await loadOverview(taskId);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  async function handleToggleTask() {
+    if (!selectedTask) return;
+    setBusyTaskId(selectedTask.id);
+    try {
+      await updateTask(selectedTask.id, { enabled: !selectedTask.enabled });
+      await loadAll();
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  async function handleDeleteTask() {
+    if (!selectedTask) return;
+    const confirmed = window.confirm(`删除监测任务「${selectedTask.name}」及其节点历史？`);
+    if (!confirmed) return;
+    setBusyTaskId(selectedTask.id);
+    try {
+      await deleteTask(selectedTask.id);
+      await loadTasks(null);
+      await loadOverview(null);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusyTaskId(null);
     }
   }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div>
-          <h1>Proxy Check</h1>
-          <p>节点质量检测平台</p>
-        </div>
-        <button className="primary-button" onClick={handleRun} disabled={running}>
-          <RefreshCw size={16} className={running ? "spin" : ""} />
-          立即检测
-        </button>
-      </header>
+    <div className="app-layout">
+      <TaskSidebar
+        tasks={tasks}
+        selectedTaskId={selectedTaskId}
+        onSelect={setSelectedTaskId}
+        onCreate={() => {
+          setEditingTask(null);
+          setShowForm(true);
+        }}
+        onRefresh={handleRefreshTask}
+        busyTaskId={busyTaskId}
+      />
 
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={16} />
-          {error}
-        </div>
-      )}
-
-      <main className="dashboard-grid">
-        <section className="main-pane">
-          <div className="metric-grid">
-            <MetricCard icon={<Server size={20} />} label="节点总数" value={`${stats?.total_nodes ?? 0}`} />
-            <MetricCard
-              icon={<CheckCircle2 size={20} />}
-              label="可用节点"
-              value={`${stats?.available_nodes ?? 0}`}
-              tone="ok"
-            />
-            <MetricCard
-              icon={<XCircle size={20} />}
-              label="异常节点"
-              value={`${stats?.down_nodes ?? 0}`}
-              tone="danger"
-            />
-            <MetricCard
-              icon={<Gauge size={20} />}
-              label="平均延迟"
-              value={formatLatency(stats?.average_delay_ms ?? null)}
-            />
+      <main className="workspace">
+        <header className="workspace-header">
+          <div>
+            <span className="eyebrow">Monitor Task</span>
+            <h2>{selectedTask?.name ?? "未选择任务"}</h2>
+            <p>{selectedTask?.source_url ?? "导入 Clash/Mihomo YAML URL 后开始同步节点。"}</p>
           </div>
+          <div className="header-actions">
+            <IconButton label="编辑任务" onClick={() => selectedTask && (setEditingTask(selectedTask), setShowForm(true))} disabled={!selectedTask}>
+              <Pencil size={16} />
+            </IconButton>
+            <IconButton label={selectedTask?.enabled ? "暂停任务" : "启用任务"} onClick={handleToggleTask} disabled={!selectedTask}>
+              <CirclePause size={16} />
+            </IconButton>
+            <IconButton label="删除任务" onClick={handleDeleteTask} disabled={!selectedTask} tone="danger">
+              <Trash2 size={16} />
+            </IconButton>
+            <button className="primary-button" onClick={handleRunTask} disabled={!selectedTask || busyTaskId === selectedTask.id}>
+              <RefreshCw size={16} className={busyTaskId === selectedTask?.id ? "spin" : ""} />
+              检测任务
+            </button>
+          </div>
+        </header>
 
+        {showForm && (
+          <TaskForm
+            task={editingTask}
+            onSubmit={handleTaskSubmit}
+            onCancel={() => {
+              setShowForm(false);
+              setEditingTask(null);
+            }}
+            saving={savingTask}
+          />
+        )}
+
+        {error && (
+          <div className="error-banner">
+            <AlertTriangle size={16} />
+            {error}
+          </div>
+        )}
+
+        <div className="metric-grid">
+          <MetricCard icon={<Server size={20} />} label="节点总数" value={`${stats?.total_nodes ?? 0}`} />
+          <MetricCard icon={<CheckCircle2 size={20} />} label="可用节点" value={`${stats?.available_nodes ?? 0}`} tone="ok" />
+          <MetricCard icon={<XCircle size={20} />} label="异常节点" value={`${stats?.down_nodes ?? 0}`} tone="danger" />
+          <MetricCard icon={<Gauge size={20} />} label="平均延迟" value={formatLatency(stats?.average_delay_ms ?? null)} />
+        </div>
+
+        <section className="content-grid">
           <section className="list-panel">
             <div className="toolbar">
               <div className="search-box">
                 <Search size={16} />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="搜索节点或入口地址"
-                />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索节点或入口地址" />
               </div>
               <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
                 <option value="all">全部状态</option>
@@ -454,19 +730,19 @@ function App() {
                 加载中
               </div>
             ) : (
-              <NodeTable nodes={filtered} selectedId={selectedId} onSelect={(node) => setSelectedId(node.id)} />
+              <NodeTable nodes={filtered} selectedId={selectedId} onSelect={(node) => setSelectedId(node.id)} hasTask={Boolean(selectedTask)} />
             )}
           </section>
-        </section>
 
-        <DetailPane
-          selected={selected}
-          detail={detail}
-          delayHistory={delayHistory}
-          tcpHistory={tcpHistory}
-          range={range}
-          onRangeChange={setRange}
-        />
+          <DetailPane
+            selected={selected}
+            detail={detail}
+            delayHistory={delayHistory}
+            tcpHistory={tcpHistory}
+            range={range}
+            onRangeChange={setRange}
+          />
+        </section>
       </main>
     </div>
   );

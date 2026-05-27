@@ -60,8 +60,7 @@ def build_runtime_config(
     controller_port: int,
     secret: str,
     listener_host: str,
-    listener_start_port: int,
-    node_names: list[str],
+    listener_ports: dict[str, int],
 ) -> dict[str, int]:
     source = Path(source_config_path)
     with source.open("r", encoding="utf-8") as fh:
@@ -72,8 +71,7 @@ def build_runtime_config(
 
     listeners = list(data.get("listeners") or [])
     port_map: dict[str, int] = {}
-    for index, name in enumerate(node_names):
-        port = listener_start_port + index
+    for index, (name, port) in enumerate(listener_ports.items()):
         port_map[name] = port
         listeners.append(
             {

@@ -7,17 +7,83 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.core.clash_config import ClashNode
-from app.storage.models import Node, ProbeResult, utcnow
+from app.storage.models import MonitorTask, Node, ProbeResult, utcnow
+
+
+async def create_task(
+    session: AsyncSession,
+    *,
+    name: str,
+    source_url: str,
+    config_path: str,
+    interval_seconds: int,
+    enabled: bool = True,
+) -> MonitorTask:
+    now = utcnow()
+    task = MonitorTask(
+        name=name,
+        source_url=source_url,
+        config_path=config_path,
+        interval_seconds=interval_seconds,
+        enabled=enabled,
+        status="unknown",
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+async def get_task(session: AsyncSession, task_id: int) -> MonitorTask | None:
+    return await session.get(MonitorTask, task_id)
+
+
+async def list_tasks(session: AsyncSession) -> list[MonitorTask]:
+    rows = await session.execute(select(MonitorTask).order_by(MonitorTask.id.asc()))
+    return list(rows.scalars().all())
+
+
+async def update_task(
+    session: AsyncSession,
+    task: MonitorTask,
+    **values: object,
+) -> MonitorTask:
+    for key, value in values.items():
+        setattr(task, key, value)
+    task.updated_at = utcnow()
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+async def delete_task(session: AsyncSession, task: MonitorTask) -> None:
+    await session.delete(task)
+    await session.commit()
+
+
+async def task_node_counts(session: AsyncSession) -> dict[int, int]:
+    rows = await session.execute(
+        select(Node.task_id, func.count(Node.id))
+        .where(Node.task_id.is_not(None), Node.status != "removed")
+        .group_by(Node.task_id)
+    )
+    return {int(task_id): int(count) for task_id, count in rows.all() if task_id is not None}
 
 
 async def upsert_nodes(
     session: AsyncSession,
     nodes: list[ClashNode],
     listener_ports: dict[str, int],
+    *,
+    task_id: int | None = None,
 ) -> list[Node]:
     existing = {
         node.name: node
-        for node in (await session.execute(select(Node))).scalars().all()
+        for node in (
+            await session.execute(select(Node).where(Node.task_id == task_id))
+        ).scalars().all()
     }
     output: list[Node] = []
     names = {node.name for node in nodes}
@@ -25,8 +91,9 @@ async def upsert_nodes(
     for item in nodes:
         node = existing.get(item.name)
         if node is None:
-            node = Node(name=item.name)
+            node = Node(name=item.name, task_id=task_id)
             session.add(node)
+        node.task_id = task_id
         node.type = item.type
         node.server = item.server
         node.port = item.port
@@ -45,8 +112,11 @@ async def upsert_nodes(
     return output
 
 
-async def list_nodes(session: AsyncSession) -> list[Node]:
-    rows = await session.execute(select(Node).order_by(Node.name.asc()))
+async def list_nodes(session: AsyncSession, *, task_id: int | None = None) -> list[Node]:
+    stmt = select(Node).order_by(Node.name.asc())
+    if task_id is not None:
+        stmt = stmt.where(Node.task_id == task_id)
+    rows = await session.execute(stmt)
     return list(rows.scalars().all())
 
 
@@ -114,7 +184,11 @@ async def latest_result_subquery(metric: str) -> Select[tuple[int, int]]:
     )
 
 
-async def nodes_with_latest_metrics(session: AsyncSession) -> list[dict[str, object]]:
+async def nodes_with_latest_metrics(
+    session: AsyncSession,
+    *,
+    task_id: int | None = None,
+) -> list[dict[str, object]]:
     delay_latest = (await latest_result_subquery("delay")).subquery()
     tcp_latest = (await latest_result_subquery("tcping")).subquery()
     delay_result = aliased(ProbeResult)
@@ -140,8 +214,10 @@ async def nodes_with_latest_metrics(session: AsyncSession) -> list[dict[str, obj
                 tcp_result.id == tcp_latest.c.result_id,
             ),
         )
-        .order_by(Node.name.asc())
     )
+    if task_id is not None:
+        stmt = stmt.where(Node.task_id == task_id)
+    stmt = stmt.order_by(Node.name.asc())
     rows = (await session.execute(stmt)).all()
     return [
         {
@@ -197,14 +273,17 @@ async def cleanup_old_results(session: AsyncSession, retention_days: int) -> int
     return int(result.rowcount or 0)
 
 
-async def stats(session: AsyncSession) -> dict[str, object]:
-    rows = await session.execute(select(Node))
+async def stats(session: AsyncSession, *, task_id: int | None = None) -> dict[str, object]:
+    stmt = select(Node)
+    if task_id is not None:
+        stmt = stmt.where(Node.task_id == task_id)
+    rows = await session.execute(stmt)
     nodes = list(rows.scalars().all())
     total = len(nodes)
     available = len([node for node in nodes if node.status == "available"])
     down = len([node for node in nodes if node.status == "down"])
 
-    latest = await nodes_with_latest_metrics(session)
+    latest = await nodes_with_latest_metrics(session, task_id=task_id)
     latencies = [
         item["delay"].latency_ms
         for item in latest

@@ -6,16 +6,19 @@ mihomo:
   bin: /app/runtime/bin/mihomo
   source_config_path: /app/configs/clash.yaml
   work_dir: /app/runtime/mihomo
+  imported_config_dir: /app/runtime/configs
   controller_host: 127.0.0.1
   controller_port: 9090
   secret_env: MIHOMO_SECRET
   listener_host: 127.0.0.1
   listener_port_start: 20000
+  listener_port_max: 65000
 
 probe:
   interval_seconds: 60
   concurrency: 100
   timeout_ms: 5000
+  import_timeout_ms: 30000
   retention_days: 30
   delay_url: https://cp.cloudflare.com/generate_204
   tcp_targets:

@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 
 from app.services.probe_service import ProbeService
+from app.storage import repository
+from app.storage.models import utcnow
 
 logger = logging.getLogger(__name__)
+
+
+def aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 class ProbeScheduler:
@@ -32,11 +41,29 @@ class ProbeScheduler:
     async def _loop(self) -> None:
         while not self._stopping.is_set():
             try:
-                await self.service.run_once()
+                await self.run_due_tasks()
             except Exception:
                 logger.exception("probe run failed")
             try:
-                await asyncio.wait_for(self._stopping.wait(), timeout=self.interval_seconds)
+                await asyncio.wait_for(self._stopping.wait(), timeout=min(self.interval_seconds, 5))
             except TimeoutError:
                 continue
 
+    async def run_due_tasks(self) -> None:
+        now = utcnow()
+        async with self.service.session_factory() as session:
+            tasks = await repository.list_tasks(session)
+        for task in tasks:
+            if not task.enabled:
+                continue
+            if task.next_run_at is not None and aware(task.next_run_at) > now:
+                continue
+            await self.service.run_task(task.id)
+            async with self.service.session_factory() as session:
+                fresh = await repository.get_task(session, task.id)
+                if fresh is not None and fresh.next_run_at is None:
+                    await repository.update_task(
+                        session,
+                        fresh,
+                        next_run_at=now + timedelta(seconds=fresh.interval_seconds),
+                    )

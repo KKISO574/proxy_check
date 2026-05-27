@@ -1,4 +1,4 @@
-import React, { FormEvent, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
@@ -470,30 +470,42 @@ function App() {
   const [editingTask, setEditingTask] = useState<MonitorTask | null>(null);
   const [savingTask, setSavingTask] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<number | null>(null);
+  const selectedTaskIdRef = useRef<number | null>(selectedTaskId);
+  const selectedIdRef = useRef<number | null>(selectedId);
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
 
-  async function loadTasks(nextSelectedId = selectedTaskId) {
+  function selectTaskId(taskId: number | null) {
+    selectedTaskIdRef.current = taskId;
+    setSelectedTaskId(taskId);
+  }
+
+  function selectNodeId(nodeId: number | null) {
+    selectedIdRef.current = nodeId;
+    setSelectedId(nodeId);
+  }
+
+  async function loadTasks(nextSelectedId = selectedTaskIdRef.current) {
     const nextTasks = await fetchTasks();
     setTasks(nextTasks);
     if (nextTasks.length === 0) {
-      setSelectedTaskId(null);
+      selectTaskId(null);
       return null;
     }
     const stillExists = nextTasks.some((task) => task.id === nextSelectedId);
     const nextId = stillExists ? nextSelectedId : nextTasks[0].id;
-    setSelectedTaskId(nextId);
+    selectTaskId(nextId);
     return nextId;
   }
 
-  async function loadOverview(taskId = selectedTaskId) {
+  async function loadOverview(taskId = selectedTaskIdRef.current) {
     try {
       const [nextNodes, nextStats] = await Promise.all([fetchNodes(taskId), fetchStats(taskId)]);
       setNodes(nextNodes);
       setStats(nextStats);
       setError(null);
-      if (!nextNodes.some((node) => node.id === selectedId)) {
-        setSelectedId(nextNodes[0]?.id ?? null);
+      if (!nextNodes.some((node) => node.id === selectedIdRef.current)) {
+        selectNodeId(nextNodes[0]?.id ?? null);
       }
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
@@ -519,7 +531,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    setSelectedId(null);
+    selectNodeId(null);
     setDetail(null);
     setDelayHistory([]);
     setTcpHistory([]);
@@ -645,7 +657,7 @@ function App() {
       <TaskSidebar
         tasks={tasks}
         selectedTaskId={selectedTaskId}
-        onSelect={setSelectedTaskId}
+        onSelect={selectTaskId}
         onCreate={() => {
           setEditingTask(null);
           setShowForm(true);
@@ -730,7 +742,7 @@ function App() {
                 加载中
               </div>
             ) : (
-              <NodeTable nodes={filtered} selectedId={selectedId} onSelect={(node) => setSelectedId(node.id)} hasTask={Boolean(selectedTask)} />
+              <NodeTable nodes={filtered} selectedId={selectedId} onSelect={(node) => selectNodeId(node.id)} hasTask={Boolean(selectedTask)} />
             )}
           </section>
 

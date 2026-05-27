@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import router
 from app.core.config import get_settings
 from app.scheduler.runner import ProbeScheduler
+from app.services.config_import import ConfigImportService
 from app.services.probe_service import ProbeService
 from app.storage import database
 
@@ -25,9 +26,11 @@ async def lifespan(app: FastAPI):
     await database.init_db()
     assert database.SessionLocal is not None
     service = ProbeService(settings, database.SessionLocal)
+    config_import_service = ConfigImportService(settings)
     scheduler = ProbeScheduler(service, settings.probe.interval_seconds)
     app.state.settings = settings
     app.state.probe_service = service
+    app.state.config_import_service = config_import_service
     app.state.scheduler = scheduler
     scheduler.start()
     try:

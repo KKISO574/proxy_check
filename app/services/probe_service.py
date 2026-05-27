@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -10,8 +11,9 @@ from app.core.clash_config import load_clash_nodes
 from app.core.config import Settings
 from app.probes.mihomo import MihomoClient, MihomoManager, MihomoUnavailable
 from app.probes.tcping import socks5_connect
+from app.services.port_allocator import allocate_for_task
 from app.storage import repository
-from app.storage.models import Node
+from app.storage.models import MonitorTask, Node, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -35,21 +37,43 @@ class ProbeService:
         self.manager = manager or MihomoManager(settings)
         self._run_lock = asyncio.Lock()
 
-    async def sync_nodes(self, session: AsyncSession) -> list[Node]:
+    async def sync_nodes(self, session: AsyncSession, task: MonitorTask | None = None) -> list[Node]:
         cfg = self.settings.mihomo
-        if not cfg.source_config_path:
+        source_config_path = task.config_path if task is not None else cfg.source_config_path
+        if not source_config_path:
             return []
-        nodes = load_clash_nodes(cfg.source_config_path)
-        listener_ports = {
-            node.name: cfg.listener_port_start + index
-            for index, node in enumerate(nodes)
-        }
-        return await repository.upsert_nodes(session, nodes, listener_ports)
+        nodes = load_clash_nodes(source_config_path)
+        listener_ports = await allocate_for_task(
+            session,
+            task_id=task.id if task is not None else None,
+            desired_names=[node.name for node in nodes],
+            port_start=cfg.listener_port_start,
+            port_max=cfg.listener_port_max,
+        )
+        return await repository.upsert_nodes(
+            session,
+            nodes,
+            listener_ports,
+            task_id=task.id if task is not None else None,
+        )
 
-    async def ensure_mihomo(self) -> None:
-        if self.manager.process and self.manager.process.returncode is None:
-            return
-        await self.manager.start()
+    async def ensure_mihomo(self, task: MonitorTask | None = None) -> None:
+        cfg = self.settings.mihomo
+        source_config_path = task.config_path if task is not None else cfg.source_config_path
+        async with self.session_factory() as session:
+            nodes = await repository.list_nodes(
+                session, task_id=task.id if task is not None else None
+            )
+        listener_ports = {
+            node.name: int(node.listener_port)
+            for node in nodes
+            if node.listener_port is not None and node.status != "removed"
+        }
+        await self.manager.start(
+            source_config_path,
+            listener_ports=listener_ports or None,
+            listener_port_start=cfg.listener_port_start,
+        )
 
     async def run_once(self) -> ProbeRunSummary:
         if self._run_lock.locked():
@@ -80,6 +104,65 @@ class ProbeService:
                 for node in nodes
             ]
             counts = await asyncio.gather(*tasks)
+            return ProbeRunSummary(
+                nodes=len(nodes),
+                results=sum(count[0] for count in counts),
+                errors=sum(count[1] for count in counts),
+            )
+
+    async def run_task(self, task_id: int) -> ProbeRunSummary:
+        if self._run_lock.locked():
+            return ProbeRunSummary(nodes=0, results=0, errors=1)
+
+        async with self._run_lock:
+            async with self.session_factory() as session:
+                task = await repository.get_task(session, task_id)
+                if task is None or not task.enabled:
+                    return ProbeRunSummary(nodes=0, results=0, errors=1)
+                nodes = await self.sync_nodes(session, task)
+                await repository.cleanup_old_results(session, self.settings.probe.retention_days)
+                if not nodes:
+                    now = utcnow()
+                    await repository.update_task(
+                        session,
+                        task,
+                        status="unknown",
+                        last_checked_at=now,
+                        next_run_at=now + timedelta(seconds=task.interval_seconds),
+                    )
+                    return ProbeRunSummary(nodes=0, results=0, errors=0)
+
+            mihomo_error: str | None = None
+            try:
+                await self.ensure_mihomo(task)
+            except MihomoUnavailable as exc:
+                mihomo_error = str(exc)
+                logger.warning("mihomo unavailable: %s", mihomo_error)
+
+            client = MihomoClient(
+                self.manager.controller_base_url,
+                self.manager.secret,
+                self.settings.probe.timeout_ms,
+            )
+            semaphore = asyncio.Semaphore(self.settings.probe.concurrency)
+            counts = await asyncio.gather(
+                *[
+                    self._probe_node(node.id, client, semaphore, mihomo_error=mihomo_error)
+                    for node in nodes
+                ]
+            )
+            async with self.session_factory() as session:
+                fresh_task = await repository.get_task(session, task_id)
+                if fresh_task is not None:
+                    now = utcnow()
+                    status = "available" if any(count[0] > count[1] for count in counts) else "down"
+                    await repository.update_task(
+                        session,
+                        fresh_task,
+                        status=status,
+                        last_checked_at=now,
+                        next_run_at=now + timedelta(seconds=fresh_task.interval_seconds),
+                    )
             return ProbeRunSummary(
                 nodes=len(nodes),
                 results=sum(count[0] for count in counts),
@@ -186,4 +269,3 @@ class ProbeService:
                 await repository.save_probe_batch(session, node, results)
                 await session.commit()
                 return len(results), error_count
-

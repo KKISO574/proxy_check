@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class NodeListItem(BaseModel):
     id: int
+    task_id: int | None = None
     name: str
     type: str | None
     server: str | None
@@ -44,6 +45,39 @@ class RunResponse(BaseModel):
     nodes: int
     results: int
     errors: int
+
+
+class TaskListItem(BaseModel):
+    id: int
+    name: str
+    source_url: str
+    enabled: bool
+    interval_seconds: int
+    status: str
+    node_count: int
+    last_refresh_at: datetime | None
+    last_refresh_error: str | None
+    last_checked_at: datetime | None
+    next_run_at: datetime | None
+
+
+class TaskCreateRequest(BaseModel):
+    name: str
+    source_url: str
+    interval_seconds: int = 60
+    enabled: bool = True
+
+
+class TaskUpdateRequest(BaseModel):
+    name: str | None = None
+    source_url: str | None = None
+    interval_seconds: int | None = None
+    enabled: bool | None = None
+
+
+class TaskImportResponse(BaseModel):
+    task: TaskListItem
+    nodes: int
 
 
 NodeDetail.model_rebuild()

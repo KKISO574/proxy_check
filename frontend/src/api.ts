@@ -2,6 +2,7 @@ export type NodeStatus = "unknown" | "available" | "down" | "removed";
 
 export interface NodeItem {
   id: number;
+  task_id: number | null;
   name: string;
   type: string | null;
   server: string | null;
@@ -35,6 +36,32 @@ export interface Stats {
   average_delay_ms: number | null;
 }
 
+export interface MonitorTask {
+  id: number;
+  name: string;
+  source_url: string;
+  enabled: boolean;
+  interval_seconds: number;
+  status: NodeStatus;
+  node_count: number;
+  last_refresh_at: string | null;
+  last_refresh_error: string | null;
+  last_checked_at: string | null;
+  next_run_at: string | null;
+}
+
+export interface TaskImportResponse {
+  task: MonitorTask;
+  nodes: number;
+}
+
+export interface TaskPayload {
+  name: string;
+  source_url: string;
+  interval_seconds: number;
+  enabled?: boolean;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     headers: {
@@ -46,11 +73,50 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const text = await response.text();
     throw new Error(text || `Request failed: ${response.status}`);
   }
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return response.json() as Promise<T>;
 }
 
-export function fetchNodes(): Promise<NodeItem[]> {
-  return request<NodeItem[]>("/api/nodes");
+function withTask(path: string, taskId?: number | null): string {
+  if (!taskId) return path;
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}task_id=${taskId}`;
+}
+
+export function fetchTasks(): Promise<MonitorTask[]> {
+  return request<MonitorTask[]>("/api/tasks");
+}
+
+export function createTask(payload: TaskPayload): Promise<TaskImportResponse> {
+  return request<TaskImportResponse>("/api/tasks", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateTask(id: number, payload: Partial<TaskPayload>): Promise<TaskImportResponse> {
+  return request<TaskImportResponse>(`/api/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteTask(id: number): Promise<void> {
+  return request<void>(`/api/tasks/${id}`, { method: "DELETE" });
+}
+
+export function refreshTask(id: number): Promise<TaskImportResponse> {
+  return request<TaskImportResponse>(`/api/tasks/${id}/refresh`, { method: "POST" });
+}
+
+export function runTask(id: number): Promise<{ nodes: number; results: number; errors: number }> {
+  return request(`/api/tasks/${id}/run`, { method: "POST" });
+}
+
+export function fetchNodes(taskId?: number | null): Promise<NodeItem[]> {
+  return request<NodeItem[]>(withTask("/api/nodes", taskId));
 }
 
 export function fetchNode(id: number): Promise<NodeDetail> {
@@ -65,11 +131,10 @@ export function fetchHistory(
   return request<ProbePoint[]>(`/api/nodes/${id}/history?metric=${metric}&range=${range}`);
 }
 
-export function fetchStats(): Promise<Stats> {
-  return request<Stats>("/api/stats");
+export function fetchStats(taskId?: number | null): Promise<Stats> {
+  return request<Stats>(withTask("/api/stats", taskId));
 }
 
 export function runTests(): Promise<{ nodes: number; results: number; errors: number }> {
   return request("/api/tests/run", { method: "POST" });
 }
-

@@ -285,9 +285,59 @@ Avoid:
 
 ## REST API
 
+### Multi-Config Tasks
+
+The platform groups Clash/Mihomo configurations into **monitor tasks**. Each
+task owns:
+
+- one source URL (`http`/`https` only)
+- one cached YAML file under `mihomo.imported_config_dir`
+- its own `interval_seconds` for scheduled detection
+- its own listener port range (assigned out of `mihomo.listener_port_start`
+  ~ `listener_port_max`, picked via gap-finding so tasks never collide)
+- isolated nodes and history (same node name across tasks is NOT merged)
+
+Re-downloading the source URL only happens on task creation, URL edit, or
+manual `POST /api/tasks/{id}/refresh`. Probe rounds reuse the cached YAML.
+
+### GET /api/tasks
+
+List all monitor tasks, including `node_count` and last-run status.
+
+### POST /api/tasks
+
+Create a task by importing a Clash YAML URL. Body:
+
+```json
+{
+  "name": "main",
+  "source_url": "https://example.com/clash.yaml",
+  "interval_seconds": 60,
+  "enabled": true
+}
+```
+
+### PATCH /api/tasks/{id}
+
+Edit `name`, `source_url`, `enabled`, or `interval_seconds`. Changing
+`source_url` triggers a refresh.
+
+### DELETE /api/tasks/{id}
+
+Delete the task, its nodes, and all probe history.
+
+### POST /api/tasks/{id}/refresh
+
+Re-download the source URL and resync the node list (deduplicated by name
+within the task).
+
+### POST /api/tasks/{id}/run
+
+Trigger an immediate detection round for one task.
+
 ### GET /nodes
 
-List all nodes.
+List all nodes. Pass `?task_id={id}` to scope the list to one monitor task.
 
 ---
 
@@ -299,13 +349,13 @@ Node details.
 
 ### GET /nodes/{id}/history
 
-Historical metrics.
+Historical metrics. Use `?metric=delay|tcping&range=1h|6h|24h|7d|30d`.
 
 ---
 
 ### GET /stats
 
-Global statistics.
+Global statistics. Pass `?task_id={id}` for per-task aggregates.
 
 ---
 
@@ -519,6 +569,11 @@ Provide:
 - restart Clash frequently
 - use blocking network requests
 - rely only on ICMP ping
+- exceed the configured listener port range; per-task node count is
+  bounded by `mihomo.listener_port_max - listener_port_start` shared
+  across all tasks (default ~45000 slots). Allocations are picked via
+  gap-finding rather than `start + task_id * 1000 + index`, so node
+  count is the only practical limit, not task ID.
 
 ---
 

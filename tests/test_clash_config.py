@@ -58,8 +58,7 @@ def test_build_runtime_config_injects_controller_and_listeners(tmp_path):
         controller_port=9090,
         secret="secret",
         listener_host="127.0.0.1",
-        listener_start_port=20000,
-        node_names=["node-a", "node-b"],
+        listener_ports={"node-a": 20000, "node-b": 20001},
     )
 
     data = yaml.safe_load(output.read_text(encoding="utf-8"))

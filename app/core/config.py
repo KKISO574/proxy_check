@@ -18,11 +18,13 @@ class MihomoConfig(BaseModel):
     bin: str = ""
     source_config_path: str = ""
     work_dir: str = "./runtime/mihomo"
+    imported_config_dir: str = "./runtime/configs"
     controller_host: str = "127.0.0.1"
     controller_port: int = 9090
     secret_env: str = "MIHOMO_SECRET"
     listener_host: str = "127.0.0.1"
     listener_port_start: int = 20000
+    listener_port_max: int = 65000
 
 
 class TcpTarget(BaseModel):
@@ -38,6 +40,7 @@ class ProbeConfig(BaseModel):
     interval_seconds: int = 60
     concurrency: int = 100
     timeout_ms: int = 5000
+    import_timeout_ms: int = 30000
     retention_days: int = 30
     delay_url: str = "https://cp.cloudflare.com/generate_204"
     tcp_targets: list[TcpTarget] = Field(

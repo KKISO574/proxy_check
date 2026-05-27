@@ -4,7 +4,8 @@ Proxy Check 是一个基于 Clash/Mihomo 的节点质量检测平台。首版包
 
 - FastAPI 后端 API
 - React 可视化页面
-- Clash/Mihomo YAML 静态节点读取
+- Clash/Mihomo YAML 静态节点读取和 URL 导入
+- 多配置监测任务，每个任务可设置检测间隔
 - Mihomo 进程托管
 - 真延迟检测，不使用简单 ping
 - 通过节点链路做 tcping
@@ -37,7 +38,8 @@ cp configs/config.example.yaml configs/config.yaml
 需要重点修改：
 
 - `mihomo.bin`：Mihomo 二进制路径，默认是 `./runtime/bin/mihomo`
-- `mihomo.source_config_path`：你的 Clash/Mihomo YAML 配置文件路径
+- `mihomo.source_config_path`：兼容旧模式的本地 Clash/Mihomo YAML 配置文件路径
+- `mihomo.imported_config_dir`：通过页面导入的配置文件保存目录
 - `mihomo.secret_env`：保存 Mihomo external-controller secret 的环境变量名
 
 示例：
@@ -46,7 +48,24 @@ cp configs/config.example.yaml configs/config.yaml
 export MIHOMO_SECRET="your_secret"
 ```
 
-首版只读取 YAML 里的静态 `proxies`。订阅链接、`proxy-providers`、解锁检测、测速等功能后续再加。
+首版只识别 Clash/Mihomo YAML 里的静态 `proxies`。页面支持导入返回 Clash YAML 的 URL，然后保存为监测任务并提取节点。Base64 节点订阅、`proxy-providers` 展开、解锁检测、测速等功能后续再加。
+
+## 配置 URL 导入和监测任务
+
+页面左侧是监测任务列表，点击“导入配置 URL”可以创建任务：
+
+- `任务名称`：用于区分不同配置源。
+- `Clash 配置 URL`：必须是 `http://` 或 `https://`，响应内容必须是 Clash/Mihomo YAML。
+- `检测间隔`：该任务自己的检测周期，默认 60 秒。
+
+导入成功后平台会：
+
+- 下载配置并校验 `proxies` 列表。
+- 按同一任务内的节点名去重。
+- 保存配置到 `mihomo.imported_config_dir`。
+- 同步节点列表，但不会立即检测；可以点击“检测任务”手动运行，或等待任务定时检测。
+
+不同任务里的同名节点互不合并，历史数据也按任务隔离。配置 URL 不会在每一轮检测前自动下载，只有创建任务、编辑 URL 或点击刷新配置时才重新下载。
 
 ## 下载 Mihomo
 
@@ -140,6 +159,7 @@ Docker 使用 [configs/config.docker.yaml](/Users/celia/Github/proxy_check/confi
 
 - Mihomo：`/app/runtime/bin/mihomo`
 - Clash 配置：`/app/configs/clash.yaml`
+- 导入配置：`/app/runtime/configs/task-{id}.yaml`
 - SQLite：`/app/data/proxy_check.sqlite3`
 
 ## 前端开发
@@ -177,13 +197,19 @@ npm run build
 
 ## API
 
-首版接口：
+主要接口：
 
-- `GET /api/nodes`：节点列表和最新检测结果
+- `GET /api/tasks`：监测任务列表
+- `POST /api/tasks`：创建任务并导入 Clash 配置 URL
+- `PATCH /api/tasks/{id}`：编辑任务名称、URL、启用状态、检测间隔
+- `DELETE /api/tasks/{id}`：删除任务及其节点历史
+- `POST /api/tasks/{id}/refresh`：重新下载配置并同步节点
+- `POST /api/tasks/{id}/run`：立即检测单个任务
+- `GET /api/nodes?task_id={id}`：节点列表和最新检测结果，不传 `task_id` 时返回全局节点
 - `GET /api/nodes/{id}`：节点详情和最近错误
 - `GET /api/nodes/{id}/history?metric=delay|tcping&range=1h|6h|24h|7d|30d`：历史折线数据
-- `GET /api/stats`：全局统计
-- `POST /api/tests/run`：立即触发一轮检测
+- `GET /api/stats?task_id={id}`：统计信息，不传 `task_id` 时返回全局统计
+- `POST /api/tests/run`：兼容旧模式，立即触发旧本地配置检测
 
 ## 检测逻辑
 
@@ -195,7 +221,7 @@ npm run build
   - `8.8.8.8:443`
   - `8.8.8.8:80`
 
-默认每 60 秒检测一轮，历史数据保留 30 天。
+任务默认每 60 秒检测一轮，可在页面中按任务修改；历史数据默认保留 30 天。
 
 ## 测试
 

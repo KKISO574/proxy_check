@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 from urllib.parse import quote
@@ -9,6 +10,8 @@ import aiohttp
 
 from app.core.clash_config import build_runtime_config, load_clash_nodes
 from app.core.config import Settings
+
+logger = logging.getLogger(__name__)
 
 
 class MihomoUnavailable(RuntimeError):
@@ -22,6 +25,7 @@ class MihomoManager:
         self.runtime_config_path = Path(settings.mihomo.work_dir) / "config.yaml"
         self.listener_ports: dict[str, int] = {}
         self.active_config_path: str | None = None
+        self._stream_tasks: list[asyncio.Task[None]] = []
 
     @property
     def controller_base_url(self) -> str:
@@ -92,7 +96,59 @@ class MihomoManager:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        await self._wait_ready()
+        self._start_stream_consumers()
+        try:
+            await self._wait_ready()
+        except Exception:
+            await self.stop()
+            raise
+
+    def _start_stream_consumers(self) -> None:
+        self._stream_tasks = []
+        if self.process is None:
+            return
+        if self.process.stdout is not None:
+            self._stream_tasks.append(
+                asyncio.create_task(self._consume_stream(self.process.stdout, "stdout", logging.INFO))
+            )
+        if self.process.stderr is not None:
+            self._stream_tasks.append(
+                asyncio.create_task(self._consume_stream(self.process.stderr, "stderr", logging.WARNING))
+            )
+
+    async def _consume_stream(
+        self,
+        stream: asyncio.StreamReader,
+        stream_name: str,
+        level: int,
+    ) -> None:
+        try:
+            while True:
+                line = await stream.readline()
+                if not line:
+                    return
+                logger.log(
+                    level,
+                    "mihomo %s: %s",
+                    stream_name,
+                    line.decode("utf-8", errors="replace").rstrip(),
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("failed to consume mihomo %s", stream_name)
+
+    async def _finish_stream_consumers(self) -> None:
+        if not self._stream_tasks:
+            return
+        done, pending = await asyncio.wait(self._stream_tasks, timeout=1)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        for task in done:
+            task.result()
+        self._stream_tasks = []
 
     async def _wait_ready(self, *, attempts: int = 30, interval_seconds: float = 0.1) -> None:
         endpoint = f"{self.controller_base_url}/version"
@@ -119,14 +175,18 @@ class MihomoManager:
         )
 
     async def stop(self) -> None:
-        if not self.process or self.process.returncode is not None:
+        if not self.process:
+            await self._finish_stream_consumers()
             return
-        self.process.terminate()
-        try:
-            await asyncio.wait_for(self.process.wait(), timeout=5)
-        except TimeoutError:
-            self.process.kill()
-            await self.process.wait()
+        if self.process.returncode is None:
+            self.process.terminate()
+            try:
+                await asyncio.wait_for(self.process.wait(), timeout=5)
+            except TimeoutError:
+                self.process.kill()
+                await self.process.wait()
+        await self._finish_stream_consumers()
+        self.process = None
 
 
 class MihomoClient:
@@ -134,19 +194,36 @@ class MihomoClient:
         self.base_url = base_url.rstrip("/")
         self.secret = secret
         self.timeout = aiohttp.ClientTimeout(total=timeout_ms / 1000)
+        self._session: aiohttp.ClientSession | None = None
 
     def _headers(self) -> dict[str, str]:
         if not self.secret:
             return {}
         return {"Authorization": f"Bearer {self.secret}"}
 
+    async def _get_session(self) -> aiohttp.ClientSession:
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(timeout=self.timeout, headers=self._headers())
+        return self._session
+
+    async def aclose(self) -> None:
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+        self._session = None
+
+    async def __aenter__(self) -> "MihomoClient":
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        await self.aclose()
+
     async def delay(self, proxy_name: str, *, url: str, timeout_ms: int) -> float:
         endpoint = f"{self.base_url}/proxies/{quote(proxy_name, safe='')}/delay"
         params = {"url": url, "timeout": str(timeout_ms)}
-        async with aiohttp.ClientSession(timeout=self.timeout, headers=self._headers()) as session:
-            async with session.get(endpoint, params=params) as response:
-                response.raise_for_status()
-                payload = await response.json()
+        session = await self._get_session()
+        async with session.get(endpoint, params=params) as response:
+            response.raise_for_status()
+            payload = await response.json()
         delay = payload.get("delay")
         if not isinstance(delay, (int, float)):
             raise MihomoUnavailable(f"unexpected delay response for {proxy_name}: {payload}")

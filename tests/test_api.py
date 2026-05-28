@@ -131,6 +131,9 @@ async def test_nodes_api_exposes_metric_summary_map_for_latest_results():
             assert row["metrics"]["packet_loss"]["latency_ms"] is None
             assert row["metrics"]["packet_loss"]["value"] == 5.0
             assert row["metrics"]["packet_loss"]["data"] == '{"sent":20,"failed":1}'
+            assert row["score"] is not None
+            assert row["score_confidence"] > 0
+            assert "delay" in row["score_breakdown"]
     finally:
         database.SessionLocal = old_session
         await engine.dispose()

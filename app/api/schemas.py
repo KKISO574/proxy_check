@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MetricSummary(BaseModel):
@@ -29,6 +29,14 @@ class NodeMetaResponse(BaseModel):
     dns_leak: str | None = None
 
 
+class ScoreComponentResponse(BaseModel):
+    weight: float
+    score: float
+    contribution: float
+    value: float | None
+    status: str
+
+
 class NodeListItem(BaseModel):
     id: int
     task_id: int | None = None
@@ -40,6 +48,9 @@ class NodeListItem(BaseModel):
     status: str
     metrics: dict[str, MetricSummary]
     meta: NodeMetaResponse | None = None
+    score: float | None = None
+    score_confidence: float = 0.0
+    score_breakdown: dict[str, ScoreComponentResponse] = Field(default_factory=dict)
     last_checked_at: datetime | None
 
 

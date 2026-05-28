@@ -4,7 +4,7 @@
 Mihomo 进程被托管在后端进程内，节点检测通过 Mihomo External Controller
 和每节点独立的 SOCKS5 listener 完成。
 
-长期蓝图与路线图见 [AGENT.md](AGENT.md)。本文件只覆盖当前 v1.x 的可交付范围。
+长期蓝图与路线图见 [AGENT.md](AGENT.md)。本文件覆盖当前已交付能力与本地运行方式。
 
 ## 已实现能力
 
@@ -19,7 +19,9 @@ Mihomo 进程被托管在后端进程内，节点检测通过 Mihomo External Co
   - `packet_loss`：连续 20 次 tcping 计算成功率
   - `exit_geo`：通过节点 listener 请求 `https://ipapi.co/json` 获取出口 IP / ASN / 国家 / 地区 / ISP
 - **历史持久化**：SQLite，默认保留 30 天
-- **可视化**：节点列表、状态徽章、按 metric 分 tab 的折线图、节点画像卡片、按国家/ASN 过滤
+- **节点评分**：API 与页面展示 0-100 分、置信度和分项贡献；评分只读计算，不落库
+- **可观测性**：Prometheus 文本指标 `/metrics`，Grafana 示例见 `docs/grafana/proxy-check-v3.json`
+- **可视化**：节点列表、状态徽章、评分排序、按 metric 分 tab 的折线图、节点画像卡片、按国家/ASN 过滤
 - **部署**：Docker 多阶段构建 + docker-compose
 
 当前版本只识别 Clash/Mihomo YAML 里的静态 `proxies`。
@@ -153,6 +155,36 @@ docker compose down
 | GET | `/api/nodes/{id}/history` | 历史折线，参数 `metric` + `range=1h\|6h\|24h\|7d\|30d` |
 | GET | `/api/stats` | 全局或单任务统计，可选 `?task_id=` |
 | POST | `/api/tests/run` | 兼容旧本地配置的全量检测 |
+| GET | `/metrics` | Prometheus 文本指标，可选 `?task_id=` |
+
+节点列表与详情会额外返回：
+
+- `score`：0-100 综合分；无数据时为 `null`
+- `score_confidence`：参与评分的权重占比，0-1
+- `score_breakdown`：`delay`、`packet_loss`、`jitter`、`transport`、`status` 分项
+
+默认评分权重：delay 35、packet_loss 25、jitter 15、tcp/http/tls transport 15、status 10。
+
+## Prometheus / Grafana
+
+Prometheus 抓取示例：
+
+```yaml
+scrape_configs:
+  - job_name: proxy-check
+    static_configs:
+      - targets: ["127.0.0.1:8000"]
+```
+
+当前导出：
+
+- `proxy_check_node_score`
+- `proxy_check_node_score_confidence`
+- `proxy_check_node_availability`
+- `proxy_check_node_metric_latency_ms`
+- `proxy_check_node_metric_value`
+
+Grafana 可导入 `docs/grafana/proxy-check-v3.json` 作为起点，数据源选择 Prometheus。
 
 ## 检测说明
 
@@ -162,6 +194,7 @@ docker compose down
 - 历史记录默认保留 30 天，由 `probe.retention_days` 控制
 - 每节点 listener 端口在 `[listener_port_start, listener_port_max]`
   内通过 gap-finding 分配；范围内可分配 ~45000 个槽位（同时跨所有任务）
+- 日志默认使用 JSON 行格式，方便 Docker / 日志平台采集
 
 ## 前端开发
 

@@ -484,9 +484,6 @@ between major roadmap items; none of these block v3.
   helper instead.
 - **Scheduler global `run_lock`**: 5 s polling under a single asyncio
   lock — fine for ≤ 200 nodes, redesign at v3 alongside scoring.
-- **`MihomoClient` lifecycle**: no explicit `close()`; aiohttp
-  `ClientSession` finalised by GC. Add `aclose()` and call from
-  `MihomoManager.stop()` if hot-reload work resumes.
 
 ## Deferred metrics (schema ready, logic pending)
 
@@ -606,13 +603,19 @@ Deferred: streaming unlock and DNS leak probes.
 
 ## v3 — Observability & scoring
 
-- 0–100 weighted node score (latency + loss + jitter + availability +
-  bandwidth + unlock weights)
-- Prometheus `/metrics` endpoint (`node_latency_ms`,
-  `node_packet_loss`, `node_jitter`, `node_availability`,
-  `node_bandwidth_mbps`)
-- Grafana dashboard JSON examples
-- Replace `logging` with `structlog`
+- Done: 0–100 read-only node score based on delay, packet_loss,
+  jitter, tcp/http/tls transport, and current status. API exposes
+  `score`, `score_confidence`, and `score_breakdown`; frontend adds a
+  score column, score sort, and detail score panel.
+- Done: Prometheus `/metrics` endpoint exporting node score,
+  confidence, availability, latest metric latency, and latest metric
+  value.
+- Done: Grafana starter dashboard at `docs/grafana/proxy-check-v3.json`.
+- Done: JSON structured logging via stdlib formatter. `structlog`
+  dependency is intentionally not introduced yet to avoid widening the
+  runtime dependency chain.
+- Pending: bandwidth and unlock-aware score weights once those probes
+  exist.
 
 ## v4 — Realtime & alerting
 
@@ -741,18 +744,12 @@ Future v4 task: provide real-time updates through `/api/ws`.
 
 # Node Scoring
 
-Every node must have dynamic score.
+Every node has a dynamic read-only score exposed in API responses.
 
-Suggested formula:
+Current v3 formula:
 
 ```text
-score =
-latency_weight +
-packet_loss_weight +
-jitter_weight +
-availability_weight +
-bandwidth_weight +
-unlock_weight
+delay 35 + packet_loss 25 + jitter 15 + transport 15 + status 10
 ```
 
 Score range:
@@ -807,14 +804,9 @@ Current implementation:
 
 ## Logging
 
-Current implementation uses standard Python logging. Structured logging is
-a v3 observability task.
-
-Recommended:
-
-```python
-structlog
-```
+Current implementation uses standard Python logging with a JSON formatter
+(`app/core/logging.py`). `structlog` remains optional and is not added
+until there is a concrete logging pipeline need.
 
 ---
 
@@ -995,13 +987,14 @@ picking up work on this branch.
 - A.8 — JitterProber silent skip when samples < 2
 - A.9 — Split builtin.py into per-prober modules (see constraint below)
 - B   — This AGENT.md update
+- D   — v3 scoring, Prometheus `/metrics`, Grafana starter dashboard,
+  JSON logs, Mihomo stdout/stderr consumption, and MihomoClient
+  reusable aiohttp session
 
 ## In Progress / Pending
 
-- **C — Backend migration evaluation doc** (`docs/migration-go-vs-node.md`)
-  Documentation only, no code changes. See plan §C for structure.
-  Produces a Go vs Node.js decision document with comparison table,
-  migration path, and trigger conditions.
+- Streaming unlock, DNS leak, bandwidth probes, WebSocket alerts, and
+  distributed probe agents remain pending roadmap work.
 
 ## Critical Constraint: A.9 monkeypatch shim
 
@@ -1032,6 +1025,6 @@ pytest -q --ignore=tests/test_tcping.py
 
 ## What to do next
 
-1. Produce `docs/migration-go-vs-node.md` (task C, documentation only)
-2. Pick items from **Backlog** section above if time permits
-3. When ready to merge: squash or keep per-item commits, open PR to master
+1. Run the full verification set in README before merging.
+2. Pick items from **Backlog** section above if time permits.
+3. When ready to merge: squash or keep per-item commits, open PR to master.

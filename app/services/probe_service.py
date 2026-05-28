@@ -125,7 +125,10 @@ class ProbeService:
                 self._probe_node(node.id, client, semaphore, mihomo_error=mihomo_error)
                 for node in nodes
             ]
-            counts = await asyncio.gather(*tasks)
+            try:
+                counts = await asyncio.gather(*tasks)
+            finally:
+                await client.aclose()
             return ProbeRunSummary(
                 nodes=len(nodes),
                 results=sum(count[0] for count in counts),
@@ -167,12 +170,15 @@ class ProbeService:
                 self.settings.probe.timeout_ms,
             )
             semaphore = asyncio.Semaphore(self.settings.probe.concurrency)
-            counts = await asyncio.gather(
-                *[
-                    self._probe_node(node.id, client, semaphore, mihomo_error=mihomo_error)
-                    for node in nodes
-                ]
-            )
+            try:
+                counts = await asyncio.gather(
+                    *[
+                        self._probe_node(node.id, client, semaphore, mihomo_error=mihomo_error)
+                        for node in nodes
+                    ]
+                )
+            finally:
+                await client.aclose()
             async with self.session_factory() as session:
                 fresh_task = await repository.get_task(session, task_id)
                 if fresh_task is not None:
@@ -205,12 +211,17 @@ class ProbeService:
                 if node is None:
                     return 0, 1
                 last_seen = await repository.last_metric_timestamps(session, node_id)
-                results = await self._run_probers(node, client, mihomo_error, last_seen)
-                error_count = len([result for result in results if not result.success])
 
+            results = await self._run_probers(node, client, mihomo_error, last_seen)
+            error_count = len([result for result in results if not result.success])
+
+            async with self.session_factory() as session:
+                fresh_node = await repository.get_node(session, node_id)
+                if fresh_node is None:
+                    return 0, 1
                 await repository.save_probe_batch(
                     session,
-                    node,
+                    fresh_node,
                     [
                         {
                             "metric": result.metric,

@@ -11,7 +11,18 @@ export interface NodeItem {
   status: NodeStatus;
   metrics: Record<string, MetricSummary>;
   meta: NodeMeta | null;
+  score: number | null;
+  score_confidence: number;
+  score_breakdown: Record<string, ScoreComponent>;
   last_checked_at: string | null;
+}
+
+export interface ScoreComponent {
+  weight: number;
+  score: number;
+  contribution: number;
+  value: number | null;
+  status: string;
 }
 
 export interface NodeMeta {

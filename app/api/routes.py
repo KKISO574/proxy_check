@@ -10,6 +10,7 @@ from app.api.schemas import (
     NodeMetaResponse,
     ProbePoint,
     RunResponse,
+    ScoreComponentResponse,
     StatsResponse,
     TaskCreateRequest,
     TaskImportResponse,
@@ -17,6 +18,7 @@ from app.api.schemas import (
     TaskUpdateRequest,
 )
 from app.services.config_import import ConfigImportError
+from app.services.scoring import NodeScore, score_node
 from app.storage import repository
 from app.storage.database import get_session
 from app.storage.models import MonitorTask
@@ -67,6 +69,23 @@ def node_meta_response(meta: object | None) -> NodeMetaResponse | None:
         openai_unlock=meta.openai_unlock,
         youtube_unlock=meta.youtube_unlock,
         dns_leak=meta.dns_leak,
+    )
+
+
+def score_response(score: NodeScore) -> tuple[float | None, float, dict[str, ScoreComponentResponse]]:
+    return (
+        score.score,
+        score.confidence,
+        {
+            name: ScoreComponentResponse(
+                weight=component.weight,
+                score=component.score,
+                contribution=component.contribution,
+                value=component.value,
+                status=component.status,
+            )
+            for name, component in score.breakdown.items()
+        },
     )
 
 
@@ -163,6 +182,7 @@ async def list_nodes(
             name: metric_response(summary)
             for name, summary in item["metrics"].items()
         }
+        score, confidence, breakdown = score_response(score_node(node, item["metrics"]))
         meta = await repository.get_node_meta(session, node.id)
         output.append(
             NodeListItem(
@@ -176,6 +196,9 @@ async def list_nodes(
                 status=node.status,
                 metrics=metrics,
                 meta=node_meta_response(meta),
+                score=score,
+                score_confidence=confidence,
+                score_breakdown=breakdown,
                 last_checked_at=node.last_checked_at,
             )
         )
@@ -195,6 +218,9 @@ async def node_detail(
         name: metric_response(summary)
         for name, summary in (latest_for_node["metrics"] if latest_for_node is not None else {}).items()
     }
+    score, confidence, breakdown = score_response(
+        score_node(node, latest_for_node["metrics"] if latest_for_node is not None else {})
+    )
     meta = await repository.get_node_meta(session, node.id)
     errors = await repository.recent_errors(session, node_id)
     return NodeDetail(
@@ -208,6 +234,9 @@ async def node_detail(
         status=node.status,
         metrics=metrics,
         meta=node_meta_response(meta),
+        score=score,
+        score_confidence=confidence,
+        score_breakdown=breakdown,
         last_checked_at=node.last_checked_at,
         recent_errors=[
             ProbePoint(

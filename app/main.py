@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.core.config import get_settings
+from app.core.logging import configure_logging
 from app.scheduler.runner import ProbeScheduler
 from app.services.config_import import ConfigImportService
+from app.services.prometheus import CONTENT_TYPE, build_prometheus_document
 from app.services.probe_service import ProbeService
-from app.storage import database
+from app.storage import database, repository
 
-logging.basicConfig(level=logging.INFO)
+configure_logging()
 
 
 @asynccontextmanager
@@ -55,6 +56,16 @@ static_dir = Path(get_settings().app.static_dir)
 assets_dir = static_dir / "assets"
 if assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+
+@app.get("/metrics", include_in_schema=False)
+async def prometheus_metrics(task_id: int | None = Query(default=None)):
+    if database.SessionLocal is None:
+        database.init_engine(get_settings())
+    assert database.SessionLocal is not None
+    async with database.SessionLocal() as session:
+        rows = await repository.nodes_with_latest_metrics(session, task_id=task_id)
+    return Response(build_prometheus_document(rows), media_type=CONTENT_TYPE)
 
 
 @app.get("/{full_path:path}", include_in_schema=False)

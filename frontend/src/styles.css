@@ -282,6 +282,7 @@ button:disabled {
 .detail-pane,
 .chart-panel,
 .meta-panel,
+.score-panel,
 .error-panel {
   border: 1px solid #dbe4ee;
   border-radius: 8px;
@@ -429,7 +430,7 @@ select {
 
 table {
   width: 100%;
-  min-width: 780px;
+  min-width: 860px;
   border-collapse: collapse;
 }
 
@@ -569,6 +570,66 @@ tbody tr:hover,
 .chart-panel {
   padding: 12px;
   margin-bottom: 12px;
+}
+
+.score-panel {
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.score-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5edf5;
+}
+
+.score-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #16a34a;
+}
+
+.score-confidence {
+  margin: 8px 0 10px;
+  color: #6d7c90;
+  font-size: 12px;
+}
+
+.score-breakdown {
+  display: grid;
+  gap: 6px;
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.score-row span {
+  overflow: hidden;
+  color: #405168;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-row strong {
+  text-align: right;
+  font-size: 13px;
+}
+
+.score-row small {
+  color: #6d7c90;
+  text-align: right;
+  font-size: 12px;
 }
 
 .meta-panel {

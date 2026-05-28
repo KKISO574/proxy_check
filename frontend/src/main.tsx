@@ -44,7 +44,7 @@ import "./styles.css";
 
 type StatusFilter = "all" | "available" | "down" | "unknown";
 type RangeFilter = "1h" | "6h" | "24h" | "7d" | "30d";
-type SortKey = "name" | "status" | "delay";
+type SortKey = "name" | "status" | "delay" | "score";
 type ChartMetric = {
   key: string;
   label: string;
@@ -64,6 +64,11 @@ function formatLatency(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "-";
   if (value >= 1000) return `${(value / 1000).toFixed(2)}s`;
   return `${Math.round(value)}ms`;
+}
+
+function formatScore(value: number | null): string {
+  if (value === null || Number.isNaN(value)) return "-";
+  return `${Math.round(value)}`;
 }
 
 function formatTime(value: string | null): string {
@@ -308,6 +313,7 @@ function NodeTable({
           <tr>
             <th>节点</th>
             <th>状态</th>
+            <th>评分</th>
             <th>地区</th>
             <th>真延迟</th>
             <th>tcping</th>
@@ -328,6 +334,10 @@ function NodeTable({
               </td>
               <td>
                 <StatusBadge status={node.status} />
+              </td>
+              <td>
+                <strong>{formatScore(node.score)}</strong>
+                <span className="muted">{Math.round(node.score_confidence * 100)}%</span>
               </td>
               <td>
                 <div>{node.meta?.country ?? "-"}</div>
@@ -356,7 +366,7 @@ function NodeTable({
 function ChartPanel({ title, points, color }: { title: string; points: ProbePoint[]; color: string }) {
   const data = points.map((point) => ({
     time: formatTime(point.created_at),
-    latency: point.success ? point.latency_ms : null,
+    value: point.success ? point.latency_ms ?? point.value : null,
     target: point.target
   }));
 
@@ -384,15 +394,44 @@ function ChartPanel({ title, points, color }: { title: string; points: ProbePoin
               />
               <Line
                 type="monotone"
-                dataKey="latency"
+                dataKey="value"
                 stroke={color}
                 strokeWidth={2}
                 dot={false}
                 connectNulls={false}
-                name="latency(ms)"
+                name="value"
               />
             </LineChart>
           </ResponsiveContainer>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ScorePanel({ detail }: { detail: NodeDetail | null }) {
+  const entries = Object.entries(detail?.score_breakdown ?? {});
+  return (
+    <section className="score-panel">
+      <div className="panel-title">
+        <h3>节点评分</h3>
+        <span>{detail?.score === null || detail?.score === undefined ? "-" : `${Math.round(detail.score)} / 100`}</span>
+      </div>
+      <div className="score-bar">
+        <span style={{ width: `${Math.max(0, Math.min(100, detail?.score ?? 0))}%` }} />
+      </div>
+      <div className="score-confidence">数据置信度 {Math.round((detail?.score_confidence ?? 0) * 100)}%</div>
+      <div className="score-breakdown">
+        {entries.length === 0 ? (
+          <div className="muted">暂无评分数据</div>
+        ) : (
+          entries.map(([name, item]) => (
+            <div className="score-row" key={name}>
+              <span>{name}</span>
+              <strong>{Math.round(item.score)}</strong>
+              <small>{item.weight}%</small>
+            </div>
+          ))
         )}
       </div>
     </section>
@@ -484,6 +523,7 @@ function DetailPane({
             ))}
           </div>
 
+          <ScorePanel detail={detail} />
           <MetaPanel detail={detail} />
 
           {chartMetrics.map((metric) => (
@@ -648,6 +688,7 @@ function App() {
       if (sortKey === "status") return a.status.localeCompare(b.status);
       const left = a.metrics.delay?.latency_ms ?? Number.POSITIVE_INFINITY;
       const right = b.metrics.delay?.latency_ms ?? Number.POSITIVE_INFINITY;
+      if (sortKey === "score") return (b.score ?? -1) - (a.score ?? -1);
       return left - right;
     });
   }, [nodes, asnFilter, countryFilter, search, sortKey, statusFilter]);
@@ -830,6 +871,7 @@ function App() {
               </select>
               <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
                 <option value="delay">按延迟</option>
+                <option value="score">按评分</option>
                 <option value="status">按状态</option>
                 <option value="name">按名称</option>
               </select>

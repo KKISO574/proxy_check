@@ -41,6 +41,42 @@ class StaticProber(Prober):
         ]
 
 
+class AssertNoSessionProber(Prober):
+    metric = "session_guard"
+    interval_seconds = 60
+
+    def __init__(self, session_factory) -> None:
+        self.session_factory = session_factory
+
+    async def probe(self, context: ProbeContext) -> list[ProbeOutcome]:
+        assert self.session_factory.active_sessions == 0
+        return [ProbeOutcome(metric=self.metric, success=True)]
+
+
+class CountingSessionFactory:
+    def __init__(self, session_factory) -> None:
+        self.session_factory = session_factory
+        self.active_sessions = 0
+
+    def __call__(self):
+        return _CountingSessionContext(self)
+
+
+class _CountingSessionContext:
+    def __init__(self, factory: CountingSessionFactory) -> None:
+        self.factory = factory
+        self.context = factory.session_factory()
+
+    async def __aenter__(self):
+        session = await self.context.__aenter__()
+        self.factory.active_sessions += 1
+        return session
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.factory.active_sessions -= 1
+        return await self.context.__aexit__(exc_type, exc, tb)
+
+
 @pytest.mark.asyncio
 async def test_probe_result_supports_value_and_data_and_node_meta_upsert():
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -426,6 +462,38 @@ async def test_probe_service_runs_registered_probers_instead_of_hard_coded_metri
             metric = latest[0]["metrics"]["custom_metric"]
             assert metric.value == 42.5
             assert metric.data == '{"source":"test"}'
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_probe_service_releases_database_session_while_probers_run():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    counting_session_factory = CountingSessionFactory(session_factory)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-a", listener_port=20000, status="unknown")
+            session.add(node)
+            await session.commit()
+
+        registry = ProbeRegistry([AssertNoSessionProber(counting_session_factory)])
+        settings = Settings()
+        settings.probe.dimensions = ["session_guard"]
+        service = ProbeService(settings, counting_session_factory, registry=registry)
+
+        count, errors = await service._probe_node(
+            1,
+            client=None,
+            semaphore=asyncio.Semaphore(1),
+            mihomo_error=None,
+        )
+
+        assert count == 1
+        assert errors == 0
     finally:
         await engine.dispose()
 

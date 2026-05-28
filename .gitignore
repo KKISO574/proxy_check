@@ -6,6 +6,10 @@ __pycache__/
 data/
 runtime/
 configs/config.yaml
+configs/clash.yaml
+.env
+._*
+**/._*
 
 frontend/node_modules/
 frontend/dist/
@@ -15,4 +19,3 @@ app/static/
 .DS_Store
 npm-debug.log*
 yarn-error.log*
-

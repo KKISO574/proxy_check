@@ -9,9 +9,6 @@ export interface NodeItem {
   port: number | null;
   listener_port: number | null;
   status: NodeStatus;
-  latest_delay_ms: number | null;
-  latest_tcping_ms: number | null;
-  latest_tcping_target: string | null;
   metrics: Record<string, MetricSummary>;
   meta: NodeMeta | null;
   last_checked_at: string | null;

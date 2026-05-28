@@ -333,10 +333,10 @@ function NodeTable({
                 <div>{node.meta?.country ?? "-"}</div>
                 <span className="muted">{node.meta?.asn ?? "-"}</span>
               </td>
-              <td>{formatLatency(node.latest_delay_ms)}</td>
+              <td>{formatLatency(node.metrics.delay?.latency_ms ?? null)}</td>
               <td>
-                <div>{formatLatency(node.latest_tcping_ms)}</div>
-                <span className="muted">{node.latest_tcping_target ?? "-"}</span>
+                <div>{formatLatency(node.metrics.tcping?.latency_ms ?? null)}</div>
+                <span className="muted">{node.metrics.tcping?.target ?? "-"}</span>
               </td>
               <td>
                 <span className="mono">
@@ -646,8 +646,8 @@ function App() {
     return rows.sort((a, b) => {
       if (sortKey === "name") return a.name.localeCompare(b.name);
       if (sortKey === "status") return a.status.localeCompare(b.status);
-      const left = a.latest_delay_ms ?? Number.POSITIVE_INFINITY;
-      const right = b.latest_delay_ms ?? Number.POSITIVE_INFINITY;
+      const left = a.metrics.delay?.latency_ms ?? Number.POSITIVE_INFINITY;
+      const right = b.metrics.delay?.latency_ms ?? Number.POSITIVE_INFINITY;
       return left - right;
     });
   }, [nodes, asnFilter, countryFilter, search, sortKey, statusFilter]);

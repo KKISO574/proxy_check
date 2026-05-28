@@ -38,9 +38,6 @@ class NodeListItem(BaseModel):
     port: int | None
     listener_port: int | None
     status: str
-    latest_delay_ms: float | None
-    latest_tcping_ms: float | None
-    latest_tcping_target: str | None
     metrics: dict[str, MetricSummary]
     meta: NodeMetaResponse | None = None
     last_checked_at: datetime | None

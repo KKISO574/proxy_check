@@ -159,8 +159,6 @@ async def list_nodes(
     output: list[NodeListItem] = []
     for item in rows:
         node = item["node"]
-        delay = item["delay"]
-        tcping = item["tcping"]
         metrics = {
             name: metric_response(summary)
             for name, summary in item["metrics"].items()
@@ -176,9 +174,6 @@ async def list_nodes(
                 port=node.port,
                 listener_port=node.listener_port,
                 status=node.status,
-                latest_delay_ms=delay.latency_ms if delay is not None else None,
-                latest_tcping_ms=tcping.latency_ms if tcping is not None else None,
-                latest_tcping_target=tcping.target if tcping is not None else None,
                 metrics=metrics,
                 meta=node_meta_response(meta),
                 last_checked_at=node.last_checked_at,
@@ -197,8 +192,6 @@ async def node_detail(
         raise HTTPException(status_code=404, detail="node not found")
     latest = await repository.nodes_with_latest_metrics(session)
     latest_for_node = next((item for item in latest if item["node"].id == node_id), None)
-    delay = latest_for_node["delay"] if latest_for_node is not None else None
-    tcping = latest_for_node["tcping"] if latest_for_node is not None else None
     metrics = {
         name: metric_response(summary)
         for name, summary in (latest_for_node["metrics"] if latest_for_node is not None else {}).items()
@@ -214,9 +207,6 @@ async def node_detail(
         port=node.port,
         listener_port=node.listener_port,
         status=node.status,
-        latest_delay_ms=delay.latency_ms if delay is not None else None,
-        latest_tcping_ms=tcping.latency_ms if tcping is not None else None,
-        latest_tcping_target=tcping.target if tcping is not None else None,
         metrics=metrics,
         meta=node_meta_response(meta),
         last_checked_at=node.last_checked_at,

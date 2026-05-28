@@ -282,18 +282,12 @@ async def nodes_with_latest_metrics(
             {
                 "node": node,
                 "metrics": {},
-                "delay": None,
-                "tcping": None,
             },
         )
         if result is None:
             continue
         summary = metric_summary(result)
         item["metrics"][result.metric] = summary  # type: ignore[index]
-        if result.metric == "delay":
-            item["delay"] = result
-        elif result.metric == "tcping":
-            item["tcping"] = result
     return list(by_node.values())
 
 
@@ -373,11 +367,11 @@ async def stats(session: AsyncSession, *, task_id: int | None = None) -> dict[st
     down = len([node for node in nodes if node.status == "down"])
 
     latest = await nodes_with_latest_metrics(session, task_id=task_id)
-    latencies = [
-        item["delay"].latency_ms
-        for item in latest
-        if item["delay"] is not None and item["delay"].success and item["delay"].latency_ms is not None
-    ]
+    latencies: list[float] = []
+    for item in latest:
+        delay = item["metrics"].get("delay")  # type: ignore[union-attr]
+        if delay is not None and delay.success and delay.latency_ms is not None:
+            latencies.append(delay.latency_ms)
     avg_latency = sum(latencies) / len(latencies) if latencies else None
     return {
         "total_nodes": total,

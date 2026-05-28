@@ -240,41 +240,42 @@ async def latest_result_subquery(metric: str) -> Select[tuple[int, int]]:
     )
 
 
-async def nodes_with_latest_metrics(
-    session: AsyncSession,
+def _latest_metrics_stmt(
     *,
-    task_id: int | None = None,
-    metrics: list[str] | None = None,
-) -> list[dict[str, object]]:
-    metric_names = metrics
-    latest = (
-        select(ProbeResult.node_id, ProbeResult.metric, func.max(ProbeResult.id).label("result_id"))
-        .group_by(ProbeResult.node_id, ProbeResult.metric)
-        .subquery()
+    task_id: int | None,
+    node_id: int | None,
+    metric_names: list[str] | None,
+):
+    latest_select = select(
+        ProbeResult.node_id,
+        ProbeResult.metric,
+        func.max(ProbeResult.id).label("result_id"),
     )
     if metric_names is not None:
-        latest = (
-            select(ProbeResult.node_id, ProbeResult.metric, func.max(ProbeResult.id).label("result_id"))
-            .where(ProbeResult.metric.in_(metric_names))
-            .group_by(ProbeResult.node_id, ProbeResult.metric)
-            .subquery()
-        )
+        latest_select = latest_select.where(ProbeResult.metric.in_(metric_names))
+    latest = latest_select.group_by(ProbeResult.node_id, ProbeResult.metric).subquery()
+
     result_alias = aliased(ProbeResult)
-    stmt = select(Node, result_alias).outerjoin(
-        latest,
-        latest.c.node_id == Node.id,
-    ).outerjoin(
-        result_alias,
-        and_(
-            result_alias.node_id == Node.id,
-            result_alias.metric == latest.c.metric,
-            result_alias.id == latest.c.result_id,
+    stmt = (
+        select(Node, result_alias)
+        .outerjoin(latest, latest.c.node_id == Node.id)
+        .outerjoin(
+            result_alias,
+            and_(
+                result_alias.node_id == Node.id,
+                result_alias.metric == latest.c.metric,
+                result_alias.id == latest.c.result_id,
+            ),
         )
     )
     if task_id is not None:
         stmt = stmt.where(Node.task_id == task_id)
-    stmt = stmt.order_by(Node.name.asc())
-    rows = (await session.execute(stmt)).all()
+    if node_id is not None:
+        stmt = stmt.where(Node.id == node_id)
+    return stmt.order_by(Node.name.asc())
+
+
+def _collect_latest_metrics(rows: list[tuple[Node, ProbeResult | None]]) -> dict[int, dict[str, object]]:
     by_node: dict[int, dict[str, object]] = {}
     for node, result in rows:
         item = by_node.setdefault(
@@ -288,7 +289,30 @@ async def nodes_with_latest_metrics(
             continue
         summary = metric_summary(result)
         item["metrics"][result.metric] = summary  # type: ignore[index]
-    return list(by_node.values())
+    return by_node
+
+
+async def nodes_with_latest_metrics(
+    session: AsyncSession,
+    *,
+    task_id: int | None = None,
+    metrics: list[str] | None = None,
+) -> list[dict[str, object]]:
+    stmt = _latest_metrics_stmt(task_id=task_id, node_id=None, metric_names=metrics)
+    rows = (await session.execute(stmt)).all()
+    return list(_collect_latest_metrics(rows).values())
+
+
+async def node_with_latest_metrics(
+    session: AsyncSession,
+    node_id: int,
+    *,
+    metrics: list[str] | None = None,
+) -> dict[str, object] | None:
+    stmt = _latest_metrics_stmt(task_id=None, node_id=node_id, metric_names=metrics)
+    rows = (await session.execute(stmt)).all()
+    by_node = _collect_latest_metrics(rows)
+    return by_node.get(node_id)
 
 
 async def get_node_meta(session: AsyncSession, node_id: int) -> NodeMeta | None:

@@ -178,3 +178,77 @@ async def test_node_detail_api_exposes_node_meta():
     finally:
         database.SessionLocal = old_session
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_node_with_latest_metrics_matches_full_table_query():
+    from app.storage import repository
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with session_factory() as session:
+        node_a = Node(name="node-a", status="available")
+        node_b = Node(name="node-b", status="available")
+        session.add_all([node_a, node_b])
+        await session.flush()
+        session.add_all(
+            [
+                ProbeResult(
+                    node_id=node_a.id,
+                    metric="delay",
+                    target="https://cp.cloudflare.com/generate_204",
+                    latency_ms=120,
+                    value=120,
+                    success=True,
+                    created_at=utcnow() - timedelta(minutes=2),
+                ),
+                ProbeResult(
+                    node_id=node_a.id,
+                    metric="delay",
+                    target="https://cp.cloudflare.com/generate_204",
+                    latency_ms=110,
+                    value=110,
+                    success=True,
+                    created_at=utcnow() - timedelta(minutes=1),
+                ),
+                ProbeResult(
+                    node_id=node_a.id,
+                    metric="tcping",
+                    target="1.1.1.1:443",
+                    latency_ms=80,
+                    value=80,
+                    success=True,
+                    created_at=utcnow() - timedelta(minutes=1),
+                ),
+                ProbeResult(
+                    node_id=node_b.id,
+                    metric="delay",
+                    target="https://cp.cloudflare.com/generate_204",
+                    latency_ms=200,
+                    value=200,
+                    success=True,
+                    created_at=utcnow() - timedelta(minutes=1),
+                ),
+            ]
+        )
+        await session.commit()
+        node_a_id = node_a.id
+
+        full = await repository.nodes_with_latest_metrics(session)
+        single = await repository.node_with_latest_metrics(session, node_a_id)
+
+        full_for_a = next(item for item in full if item["node"].id == node_a_id)
+        assert single is not None
+        assert set(single["metrics"].keys()) == set(full_for_a["metrics"].keys())
+        for name, summary in full_for_a["metrics"].items():
+            assert single["metrics"][name].latency_ms == summary.latency_ms
+            assert single["metrics"][name].created_at == summary.created_at
+        assert single["metrics"]["delay"].latency_ms == 110
+
+        missing = await repository.node_with_latest_metrics(session, 9999)
+        assert missing is None
+
+    await engine.dispose()

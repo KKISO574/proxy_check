@@ -190,8 +190,7 @@ async def node_detail(
     node = await repository.get_node(session, node_id)
     if node is None:
         raise HTTPException(status_code=404, detail="node not found")
-    latest = await repository.nodes_with_latest_metrics(session)
-    latest_for_node = next((item for item in latest if item["node"].id == node_id), None)
+    latest_for_node = await repository.node_with_latest_metrics(session, node_id)
     metrics = {
         name: metric_response(summary)
         for name, summary in (latest_for_node["metrics"] if latest_for_node is not None else {}).items()

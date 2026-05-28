@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -153,6 +154,56 @@ async def test_packet_loss_runs_tcping_series_and_records_percentage(monkeypatch
     payload = json.loads(outcome.data or "{}")
     assert payload["sent"] == 5
     assert payload["failed"] == 2
+
+
+@pytest.mark.asyncio
+async def test_packet_loss_returns_error_when_tcp_targets_empty(monkeypatch):
+    async def fake_socks5_connect(*_args: object, **_kwargs: object) -> float:
+        raise AssertionError("socks5_connect must not be called when targets are empty")
+
+    monkeypatch.setattr("app.probes.builtin.socks5_connect", fake_socks5_connect)
+    settings = Settings()
+    settings.probe.tcp_targets = []
+    node = Node(name="node-a", listener_port=20000)
+
+    outcome = (await PacketLossProber(samples=5).probe(ProbeContext(node, settings, None)))[0]
+
+    assert outcome.success is False
+    assert outcome.error == "no tcp_targets configured"
+    payload = json.loads(outcome.data or "{}")
+    assert payload["sent"] == 0
+    assert payload["failed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_packet_loss_runs_samples_concurrently(monkeypatch):
+    sample_delay = 0.05
+    samples = 10
+
+    async def slow_socks5_connect(*_args: object, **_kwargs: object) -> float:
+        await asyncio.sleep(sample_delay)
+        return 12.5
+
+    monkeypatch.setattr("app.probes.builtin.socks5_connect", slow_socks5_connect)
+    settings = Settings()
+    node = Node(name="node-a", listener_port=20000)
+    prober = PacketLossProber(samples=samples)
+
+    started = time.perf_counter()
+    outcome = (await prober.probe(ProbeContext(node, settings, None)))[0]
+    elapsed = time.perf_counter() - started
+
+    # Serial would take >= samples * sample_delay (0.5s); concurrent execution
+    # should finish well under half of that. Allow generous slack for CI jitter.
+    assert elapsed < (samples * sample_delay) / 2, (
+        f"PacketLossProber appears to be running serially (elapsed={elapsed:.3f}s)"
+    )
+    assert outcome.metric == "packet_loss"
+    assert outcome.success is True
+    assert outcome.value == 0.0
+    payload = json.loads(outcome.data or "{}")
+    assert payload["sent"] == samples
+    assert payload["failed"] == 0
 
 
 @pytest.mark.asyncio

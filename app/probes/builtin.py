@@ -472,21 +472,46 @@ class PacketLossProber:
                     data=json.dumps({"sent": 0, "failed": 0}),
                 )
             ]
-        target = context.settings.probe.tcp_targets[0]
-        failed = 0
-        latencies: list[float] = []
-        for _ in range(self.samples):
-            try:
-                latency = await socks5_connect(
-                    context.settings.mihomo.listener_host,
-                    context.node.listener_port,
-                    target.host,
-                    target.port,
-                    timeout_ms=context.settings.probe.timeout_ms,
+        if not context.settings.probe.tcp_targets:
+            return [
+                ProbeOutcome(
+                    metric=self.metric,
+                    target="tcping:default",
+                    success=False,
+                    error="no tcp_targets configured",
+                    data=json.dumps({"sent": 0, "failed": 0}),
                 )
-                latencies.append(latency)
-            except Exception:
-                failed += 1
+            ]
+        target = context.settings.probe.tcp_targets[0]
+        timeout_ms = context.settings.probe.timeout_ms
+        # Run all samples concurrently; deadline is roughly a quarter of
+        # the serial worst case (samples overlap heavily), but never less
+        # than a single sample's own timeout.
+        deadline = max(self.samples * timeout_ms / 1000 / 4, timeout_ms / 1000)
+        coros = [
+            socks5_connect(
+                context.settings.mihomo.listener_host,
+                context.node.listener_port,
+                target.host,
+                target.port,
+                timeout_ms=timeout_ms,
+            )
+            for _ in range(self.samples)
+        ]
+        try:
+            outcomes: list[float | BaseException] = await asyncio.wait_for(
+                asyncio.gather(*coros, return_exceptions=True),
+                timeout=deadline,
+            )
+        except asyncio.TimeoutError:
+            # Overall deadline blew up — treat every probe as failed.
+            failed = self.samples
+            latencies: list[float] = []
+        else:
+            failed = sum(1 for item in outcomes if isinstance(item, BaseException))
+            latencies = [
+                float(item) for item in outcomes if isinstance(item, (int, float))
+            ]
         loss = (failed / self.samples) * 100 if self.samples else 0.0
         return [
             ProbeOutcome(

@@ -366,6 +366,144 @@ as **Done** belongs in the Roadmap below.
 - `pytest` suite covering tasks, scheduler, port allocator, mihomo
   health, migration, clash config, tcping
 
+## Done (v2.x) — `codex-agent-v2-core` branch
+
+### v2 Core abstractions
+
+- **Prober protocol** (`app/probes/base.py`): `Prober` protocol +
+  `ProbeContext` (frozen dataclass carrying node, mihomo client, config,
+  recent delay samples) + `ProbeOutcome` (metric/target/latency_ms/
+  value/data/success/error).
+- **Registry with interval gate** (`app/probes/registry.py`):
+  `ProbeRegistry.due(dimensions, last_seen, *, now)` skips probers whose
+  `interval_seconds` has not elapsed. 5% slack capped at 5 s prevents
+  edge-case skip when scheduler jitter lands a few hundred ms early.
+  Probers with no recorded success or `interval_seconds <= 0` always
+  run.
+- **Schema extension**: `ProbeResult` adds `value: float | None` and
+  `data: str | None` (JSON) for non-latency metrics; `latency_ms` kept
+  for backward-compatible delay/tcping rows.
+- **`NodeMeta` table** (one-to-one with `Node`): `exit_ip / asn /
+  country / region / isp / netflix_unlock / disney_unlock /
+  openai_unlock / youtube_unlock / dns_leak / updated_at`. Upsert via
+  `repository.upsert_node_meta`.
+- **Probe service refactor**: `_probe_node` iterates
+  `registry.due(...)` instead of hard-coded delay + tcping. Each round
+  asks `repository.last_metric_timestamps(node_id)` and feeds the gate.
+- **Single-source metrics surface**: `nodes_with_latest_metrics(...)`
+  and `node_with_latest_metrics(...)` both build the same statement via
+  `_latest_metrics_stmt(*, task_id=, node_id=, metric_names=)` with
+  `aliased(ProbeResult)` for the second outerjoin. Returns
+  `metrics: dict[str, MetricSummary]` only — no legacy
+  `latest_delay_ms / latest_tcping_ms / latest_tcping_target` fields.
+
+### v2.1 Builtin probers (`app/probes/builtin.py`)
+
+| Class | Metric | Interval | Source |
+|---|---|---|---|
+| `DelayProber` | `delay` | 60 s | Clash `/proxies/{name}/delay` → `cp.cloudflare.com/generate_204` |
+| `TcpingProber` | `tcping` | 60 s | SOCKS5 CONNECT to `1.1.1.1:443/80` & `8.8.8.8:443/80` (per `probe.tcp_targets`) |
+| `TlsHandshakeProber` | `tls_handshake` | 60 s | SOCKS5 + `asyncio.StreamWriter.start_tls()` to `cp.cloudflare.com:443` |
+| `HttpRttProber` | `http_rtt` | 60 s | SOCKS5 + GET `https://www.gstatic.com/generate_204` |
+| `JitterProber` | `jitter` | 60 s | derived: stdev of last 20 `delay` samples; emits nothing when samples < 2 |
+| `PacketLossProber` | `packet_loss` | 300 s | 20 × concurrent SOCKS5 connect via `asyncio.gather`, value = loss % |
+| `ExitIpGeoProber` | `exit_geo` | 1800 s | `ipapi.co/json` primary, `api.ip.sb/geoip` fallback → `NodeMeta` upsert |
+
+### v2.x Hardening (`[A.1]` … `[A.8]` commits)
+
+- **A.1 Interval gate**: registry consults `last_metric_timestamps` per
+  round; long-cycle probers (`packet_loss` 5 min, `exit_geo` 30 min)
+  no longer fire every scheduler tick.
+- **A.2 SOCKS5 HTTP defence**: response head capped at 16 KiB, body at
+  64 KiB; non-2xx/3xx and `Transfer-Encoding: chunked` rejected;
+  `Accept-Encoding: identity` always sent; CRLF guard on path/host;
+  `_transport` private-attribute hack replaced with public
+  `await writer.start_tls(context, server_hostname=...)` (Python 3.11+).
+- **A.3 PacketLossProber**: empty `tcp_targets` → fast `success=False,
+  error="no tcp_targets configured"`; 20 samples run via
+  `asyncio.gather(..., return_exceptions=True)` under
+  `asyncio.wait_for(..., timeout=max(samples * timeout_ms / 1000 / 4,
+  timeout_ms / 1000))` deadline.
+- **A.4 SSRF defence**: `app/services/config_import.py:
+  _resolve_and_validate_host` runs `socket.getaddrinfo` and rejects any
+  resolved address whose `is_private / is_loopback / is_link_local /
+  is_reserved` is true; `aiohttp.ClientSession.get(allow_redirects=
+  False)` so cross-host bounces require explicit user re-submit.
+- **A.5 Legacy field cleanup**: `NodeListItem`/`NodeDetail` schemas,
+  `routes.list_nodes`/`node_detail` payloads, and frontend
+  `NodeItem`/sort/render code all stop emitting `latest_delay_ms /
+  latest_tcping_ms / latest_tcping_target`. Single source of truth is
+  `metrics: dict[str, MetricSummary]`.
+- **A.6 Single-node query**: `node_with_latest_metrics(session,
+  node_id)` shares `_latest_metrics_stmt` with the list query; route
+  `node_detail` no longer scans the whole table.
+- **A.7 Geo fallback**: `_fetch_geo` + `_normalize_geo` aliasing handles
+  ipapi.co (`{ip, asn, country_name, region, org}`) vs api.ip.sb
+  (`{ip, asn, country, region, isp}`) field differences. Both fail →
+  one failure outcome.
+- **A.8 Jitter silence**: `JitterProber.probe(...)` returns `[]` when
+  `len(samples) < 2`; `_probe_node` collects empty lists harmlessly so
+  no synthetic failure rows pile up early in a node's lifetime.
+
+### Frontend (v2.3)
+
+- Metric tabs auto-generated from `node.metrics` dict — adding a new
+  Prober automatically grows the detail-panel tabs.
+- NodeMeta card (country / region / ISP / ASN / exit IP) on detail
+  panel.
+- Node table gains country and ASN columns plus matching filter
+  controls; sort key `delay` reads `metrics.delay.latency_ms`.
+
+### Tests
+
+- `pytest -q --ignore=tests/test_tcping.py` → **71 passed** on
+  `codex-agent-v2-core` (sandbox blocks `socket.bind`, so the
+  `test_tcping.py` integration suite must run outside sandbox).
+- New coverage: registry due/skip paths, packet_loss concurrency &
+  empty-target guard, SOCKS5 HTTP head/body limits & status checks,
+  config_import SSRF defence, single-node metrics query parity, geo
+  fallback, jitter silence.
+
+---
+
+# Backlog
+
+Low-priority items surfaced by the v2 review. Pick from here when
+between major roadmap items; none of these block v3.
+
+## Code-quality LOW
+
+- **`ProbeContext` frozen vs mutable ORM**: dataclass is `frozen=True`
+  but holds a live `Node` ORM instance whose attributes can be mutated
+  in-place (semantic mismatch — looks immutable, isn't).
+- **`ProbeOutcome.success` defaults to `False`**: footgun for new
+  probers that forget to set it explicitly. All current call sites are
+  explicit, but consider switching default to required keyword-only.
+- **`ExitIpGeoProber` ORM coupling**: uses `type(context.node)` to
+  refetch the node row before upsert; should accept a repository
+  helper instead.
+- **Scheduler global `run_lock`**: 5 s polling under a single asyncio
+  lock — fine for ≤ 200 nodes, redesign at v3 alongside scoring.
+- **`MihomoClient` lifecycle**: no explicit `close()`; aiohttp
+  `ClientSession` finalised by GC. Add `aclose()` and call from
+  `MihomoManager.stop()` if hot-reload work resumes.
+
+## Deferred metrics (schema ready, logic pending)
+
+- `bandwidth_dl_1mb / bandwidth_dl_10mb`: needs its own deadline
+  budget (separate from `probe.timeout_ms`) and bandwidth-throttle
+  awareness; deferred until v3.
+- `netflix_unlock / disney_unlock / openai_unlock / youtube_unlock`:
+  `NodeMeta` columns ready; unlock-page detection logic is the
+  per-service work.
+- `dns_leak`: same as above; needs a stable upstream resolver list.
+
+## Documentation
+
+- Frontend onboarding doc — currently `frontend/README.md` is sparse;
+  v3 dashboard work would benefit from a state-management overview
+  before adding score/Prometheus charts.
+
 ---
 
 # Roadmap
@@ -480,6 +618,15 @@ Deferred: streaming unlock and DNS leak probes.
 
 - WebSocket `/api/ws` push for status changes
 - Telegram / WeCom webhook on `available → down` transitions
+
+## v4.5 — Backend language migration evaluation (decision doc only)
+
+Evaluation document at `docs/migration-go-vs-node.md`. Compares
+keeping Python vs migrating to Go (preferred, same language as Mihomo
+so it could become an embedded library) vs Node.js (shares types with
+the React frontend). Documentation only — no code, no toolchain
+introduced. Trigger conditions for actually migrating live in the
+doc's §7 Decision thresholds.
 
 ## v5 — Distributed probes
 
@@ -787,6 +934,10 @@ Provide:
   across all tasks (default ~45000 slots). Allocations are picked via
   gap-finding rather than `start + task_id * 1000 + index`, so node
   count is the only practical limit, not task ID.
+- register a new Prober without setting a sensible `interval_seconds`
+  (the registry `due()` gate will skip it forever if interval is 0)
+- use `interval_seconds` to disable a metric — use `probe.dimensions`
+  config instead (unregistered probers are never instantiated)
 
 ---
 
@@ -797,6 +948,13 @@ Provide:
 - support metrics
 - support historical persistence
 - support extensibility
+- all outbound HTTP via SOCKS5 helpers must send
+  `Accept-Encoding: identity`, enforce body size cap (64 KiB), validate
+  HTTP status code (reject non-200), and reject `Transfer-Encoding: chunked`
+- user-provided URLs (config import, future webhooks, any external target)
+  must pass through SSRF defence
+  (`app/services/config_import.py:_resolve_and_validate_host` or equivalent)
+  and disable HTTP redirects (`allow_redirects=False`)
 
 ---
 
@@ -816,3 +974,64 @@ https://captive.apple.com
 
 The original implementation order was the v1 plan; the current
 phasing lives in **Roadmap** above (v2 → v3 → v4 → v5 → v6).
+
+---
+
+# Codex Handoff (codex-agent-v2-core branch)
+
+This section documents the current state for the next codex (or human)
+picking up work on this branch.
+
+## Completed (this cycle)
+
+- A.1 — ProbeRegistry.due() interval gate (registry.py)
+- A.2 — SOCKS5 HTTP client hardening (size caps, status validation,
+  CRLF guards, Accept-Encoding: identity, start_tls public API)
+- A.3 — PacketLossProber concurrent gather + empty targets guard
+- A.4 — SSRF defence on config import URLs
+- A.5 — Removed legacy `latest_*_ms` dual-schema fields (API + frontend)
+- A.6 — `node_with_latest_metrics` single-node query + subquery cleanup
+- A.7 — ExitIpGeoProber fallback to api.ip.sb
+- A.8 — JitterProber silent skip when samples < 2
+- A.9 — Split builtin.py into per-prober modules (see constraint below)
+- B   — This AGENT.md update
+
+## In Progress / Pending
+
+- **C — Backend migration evaluation doc** (`docs/migration-go-vs-node.md`)
+  Documentation only, no code changes. See plan §C for structure.
+  Produces a Go vs Node.js decision document with comparison table,
+  migration path, and trigger conditions.
+
+## Critical Constraint: A.9 monkeypatch shim
+
+`tests/test_v2_core.py` patches SOCKS5 helpers via:
+```python
+monkeypatch.setattr("app.probes.builtin.socks5_connect", fake)
+monkeypatch.setattr("app.probes.builtin.socks5_http_get", fake)
+# etc.
+```
+
+For this to work:
+1. `app/probes/builtin.py` must remain as a thin shim that re-exports
+   all helpers from their new modules (`socks5_http.py`, `tcping.py`).
+2. Each per-prober module (`delay.py`, `tcping_prober.py`, etc.) must
+   import helpers via `from app.probes import builtin` and call them as
+   `builtin.socks5_connect(...)` — NOT via direct import from the
+   source module. This ensures monkeypatch on `builtin.<name>` takes
+   effect at runtime.
+
+## Verification
+
+```bash
+cd /Users/celia/Github/proxy_check
+. .venv/bin/activate
+pytest -q --ignore=tests/test_tcping.py
+# Must pass: 71/71 (or more if you add tests)
+```
+
+## What to do next
+
+1. Produce `docs/migration-go-vs-node.md` (task C, documentation only)
+2. Pick items from **Backlog** section above if time permits
+3. When ready to merge: squash or keep per-item commits, open PR to master

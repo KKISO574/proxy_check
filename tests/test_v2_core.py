@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -255,5 +256,116 @@ async def test_probe_service_runs_registered_probers_instead_of_hard_coded_metri
             metric = latest[0]["metrics"]["custom_metric"]
             assert metric.value == 42.5
             assert metric.data == '{"source":"test"}'
+    finally:
+        await engine.dispose()
+
+
+class _GatedProber(Prober):
+    """Test prober that records `interval_seconds` for the gate test."""
+
+    def __init__(self, metric: str, interval: int) -> None:
+        self.metric = metric
+        self.interval_seconds = interval
+
+    async def probe(self, context: ProbeContext) -> list[ProbeOutcome]:  # pragma: no cover
+        return []
+
+
+def test_registry_due_returns_probers_without_recorded_success():
+    registry = ProbeRegistry(
+        [
+            _GatedProber("delay", 60),
+            _GatedProber("exit_geo", 1800),
+        ]
+    )
+    due = registry.due(None, last_seen={})
+    assert {prober.metric for prober in due} == {"delay", "exit_geo"}
+
+
+def test_registry_due_skips_probers_within_interval_window():
+    now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    registry = ProbeRegistry(
+        [
+            _GatedProber("delay", 60),
+            _GatedProber("exit_geo", 1800),
+        ]
+    )
+    last_seen = {
+        # delay ran 30s ago — must be skipped (well under the 60s + 5% slack)
+        "delay": now - timedelta(seconds=30),
+        # exit_geo ran 1799s ago — within slack (5% capped at 5s) so it IS due
+        "exit_geo": now - timedelta(seconds=1799),
+    }
+    due = registry.due(None, last_seen, now=now)
+    assert {prober.metric for prober in due} == {"exit_geo"}
+
+
+def test_registry_due_zero_interval_always_runs():
+    now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    registry = ProbeRegistry([_GatedProber("ad_hoc", 0)])
+    due = registry.due(None, last_seen={"ad_hoc": now}, now=now)
+    assert [prober.metric for prober in due] == ["ad_hoc"]
+
+
+def test_registry_due_normalises_naive_timestamps_as_utc():
+    now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    registry = ProbeRegistry([_GatedProber("delay", 60)])
+    naive_recent = (now - timedelta(seconds=10)).replace(tzinfo=None)
+    due = registry.due(None, last_seen={"delay": naive_recent}, now=now)
+    assert due == []  # treated as recent UTC, must be skipped
+
+
+def test_registry_due_respects_dimensions_filter():
+    now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    registry = ProbeRegistry(
+        [
+            _GatedProber("delay", 60),
+            _GatedProber("exit_geo", 1800),
+        ]
+    )
+    due = registry.due(["delay"], last_seen={}, now=now)
+    assert [prober.metric for prober in due] == ["delay"]
+
+
+@pytest.mark.asyncio
+async def test_last_metric_timestamps_returns_only_successful_results():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-a", status="available")
+            session.add(node)
+            await session.flush()
+            old = datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc)
+            mid = datetime(2026, 1, 1, 11, 30, 0, tzinfo=timezone.utc)
+            new = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            await repository.add_probe_result(
+                session, node, metric="delay", target="t",
+                latency_ms=100.0, success=True, error=None, at=old,
+            )
+            await repository.add_probe_result(
+                session, node, metric="delay", target="t",
+                latency_ms=110.0, success=True, error=None, at=new,
+            )
+            # A failed result must not move the timestamp forward.
+            await repository.add_probe_result(
+                session, node, metric="delay", target="t",
+                latency_ms=None, success=False, error="boom",
+                at=new + timedelta(minutes=1),
+            )
+            await repository.add_probe_result(
+                session, node, metric="exit_geo", target="g",
+                latency_ms=None, success=True, error=None, at=mid,
+            )
+            await session.commit()
+
+            timestamps = await repository.last_metric_timestamps(session, node.id)
+            assert set(timestamps.keys()) == {"delay", "exit_geo"}
+            # SQLite returns naive datetimes; compare as naive UTC.
+            assert timestamps["delay"].replace(tzinfo=timezone.utc) == new
+            assert timestamps["exit_geo"].replace(tzinfo=timezone.utc) == mid
     finally:
         await engine.dispose()

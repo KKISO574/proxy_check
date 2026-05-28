@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -204,7 +204,8 @@ class ProbeService:
                 node = await repository.get_node(session, node_id)
                 if node is None:
                     return 0, 1
-                results = await self._run_probers(node, client, mihomo_error)
+                last_seen = await repository.last_metric_timestamps(session, node_id)
+                results = await self._run_probers(node, client, mihomo_error, last_seen)
                 error_count = len([result for result in results if not result.success])
 
                 await repository.save_probe_batch(
@@ -231,6 +232,7 @@ class ProbeService:
         node: Node,
         client: MihomoClient | None,
         mihomo_error: str | None,
+        last_seen: dict[str, "datetime"] | None = None,
     ) -> list[ProbeOutcome]:
         context = ProbeContext(
             node=node,
@@ -239,7 +241,10 @@ class ProbeService:
             mihomo_error=mihomo_error,
         )
         results: list[ProbeOutcome] = []
-        probers = self.registry.enabled(self.settings.probe.dimensions)
+        probers = self.registry.due(
+            self.settings.probe.dimensions,
+            last_seen or {},
+        )
         for prober in probers:
             results.extend(await prober.probe(context))
         return results

@@ -160,6 +160,20 @@ async def get_node(session: AsyncSession, node_id: int) -> Node | None:
     return await session.get(Node, node_id)
 
 
+async def last_metric_timestamps(
+    session: AsyncSession, node_id: int
+) -> dict[str, datetime]:
+    rows = await session.execute(
+        select(ProbeResult.metric, func.max(ProbeResult.created_at))
+        .where(
+            ProbeResult.node_id == node_id,
+            ProbeResult.success.is_(True),
+        )
+        .group_by(ProbeResult.metric)
+    )
+    return {metric: ts for metric, ts in rows.all() if metric is not None and ts is not None}
+
+
 async def add_probe_result(
     session: AsyncSession,
     node: Node,

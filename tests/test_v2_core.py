@@ -125,6 +125,48 @@ async def test_derived_jitter_uses_last_delay_samples():
 
 
 @pytest.mark.asyncio
+async def test_jitter_returns_empty_when_samples_insufficient():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-a", status="available")
+            session.add(node)
+            await session.flush()
+            # Single successful delay row — not enough to compute jitter.
+            await repository.add_probe_result(
+                session,
+                node,
+                metric="delay",
+                target="https://cp.cloudflare.com/generate_204",
+                latency_ms=100.0,
+                value=100.0,
+                success=True,
+                error=None,
+            )
+            # A failed delay row must not count toward the sample window.
+            await repository.add_probe_result(
+                session,
+                node,
+                metric="delay",
+                target="https://cp.cloudflare.com/generate_204",
+                latency_ms=None,
+                success=False,
+                error="boom",
+            )
+            await session.commit()
+
+            prober = JitterProber(session_factory, sample_size=5)
+            outcomes = await prober.probe(ProbeContext(node, Settings(), None))
+            assert outcomes == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_packet_loss_runs_tcping_series_and_records_percentage(monkeypatch):
     calls: list[tuple[str, int]] = []
 

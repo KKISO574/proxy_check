@@ -431,15 +431,11 @@ class JitterProber:
             )
             samples = [float(value) for value in rows.scalars().all()]
         if len(samples) < 2:
-            return [
-                ProbeOutcome(
-                    metric=self.metric,
-                    target="delay:last_samples",
-                    success=False,
-                    error="not enough delay samples",
-                    data=json.dumps({"samples": len(samples)}),
-                )
-            ]
+            # Insufficient delay history to derive jitter — emit no record.
+            # Writing a synthetic failure here would pollute probe_results
+            # every cycle until enough delay samples accumulate; the upstream
+            # _probe_node loop tolerates an empty outcome list.
+            return []
         mean = sum(samples) / len(samples)
         variance = sum((sample - mean) ** 2 for sample in samples) / len(samples)
         jitter = math.sqrt(variance)

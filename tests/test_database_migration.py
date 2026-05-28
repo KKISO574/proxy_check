@@ -51,3 +51,28 @@ async def test_upgrade_drops_legacy_named_index_before_recreating_nodes_table():
         assert row["name"] == "node-a"
 
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_upgrade_adds_v2_metric_columns_and_node_meta_table():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE TABLE monitor_tasks (id INTEGER PRIMARY KEY, name VARCHAR(255), source_url TEXT, config_path TEXT, enabled BOOLEAN, interval_seconds INTEGER, status VARCHAR(32), last_refresh_at DATETIME, last_refresh_error TEXT, last_checked_at DATETIME, next_run_at DATETIME, created_at DATETIME, updated_at DATETIME)"))
+        await conn.execute(text("CREATE TABLE nodes (id INTEGER PRIMARY KEY, task_id INTEGER, name VARCHAR(255), type VARCHAR(64), server VARCHAR(255), port INTEGER, listener_port INTEGER, status VARCHAR(32), last_checked_at DATETIME, created_at DATETIME, updated_at DATETIME)"))
+        await conn.execute(text("CREATE TABLE probe_results (id INTEGER PRIMARY KEY, node_id INTEGER, metric VARCHAR(32), target VARCHAR(255), latency_ms FLOAT, success BOOLEAN, error TEXT, created_at DATETIME)"))
+
+        await _upgrade_sqlite_schema(conn)
+
+        probe_columns = {
+            column["name"]
+            for column in (await conn.execute(text("PRAGMA table_info(probe_results)"))).mappings().all()
+        }
+        assert {"value", "data"}.issubset(probe_columns)
+
+        tables = {
+            row["name"]
+            for row in (await conn.execute(text("SELECT name FROM sqlite_master WHERE type = 'table'"))).mappings().all()
+        }
+        assert "node_meta" in tables
+
+    await engine.dispose()

@@ -1,0 +1,259 @@
+from __future__ import annotations
+
+import asyncio
+import json
+
+import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from app.core.config import Settings
+from app.probes.builtin import (
+    ExitIpGeoProber,
+    HttpRttProber,
+    JitterProber,
+    PacketLossProber,
+    TlsHandshakeProber,
+)
+from app.probes.base import ProbeContext, ProbeOutcome, Prober
+from app.probes.registry import ProbeRegistry
+from app.services.probe_service import ProbeService
+from app.storage import repository
+from app.storage.models import Base, Node, NodeMeta, ProbeResult
+
+
+class StaticProber(Prober):
+    metric = "custom_metric"
+    interval_seconds = 60
+
+    async def probe(self, context: ProbeContext) -> list[ProbeOutcome]:
+        return [
+            ProbeOutcome(
+                metric=self.metric,
+                target=context.node.name,
+                latency_ms=None,
+                value=42.5,
+                data='{"source":"test"}',
+                success=True,
+                error=None,
+            )
+        ]
+
+
+@pytest.mark.asyncio
+async def test_probe_result_supports_value_and_data_and_node_meta_upsert():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-a", status="available")
+            session.add(node)
+            await session.flush()
+            await repository.add_probe_result(
+                session,
+                node,
+                metric="packet_loss",
+                target="tcping:default",
+                latency_ms=None,
+                value=12.5,
+                data='{"sent":20,"failed":3}',
+                success=True,
+                error=None,
+            )
+            await repository.upsert_node_meta(
+                session,
+                node,
+                exit_ip="203.0.113.10",
+                asn="AS64500",
+                country="US",
+                region="California",
+                isp="Example ISP",
+            )
+            await session.commit()
+
+            result = (await session.execute(ProbeResult.__table__.select())).mappings().one()
+            assert result["value"] == 12.5
+            assert result["data"] == '{"sent":20,"failed":3}'
+
+            meta = await repository.get_node_meta(session, node.id)
+            assert isinstance(meta, NodeMeta)
+            assert meta.exit_ip == "203.0.113.10"
+            assert meta.asn == "AS64500"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_derived_jitter_uses_last_delay_samples():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-a", status="available")
+            session.add(node)
+            await session.flush()
+            for value in [100.0, 110.0, 90.0, 105.0, 95.0]:
+                await repository.add_probe_result(
+                    session,
+                    node,
+                    metric="delay",
+                    target="https://cp.cloudflare.com/generate_204",
+                    latency_ms=value,
+                    value=value,
+                    success=True,
+                    error=None,
+                )
+            await session.commit()
+
+            prober = JitterProber(session_factory, sample_size=5)
+            outcome = (await prober.probe(ProbeContext(node, Settings(), None)))[0]
+
+            assert outcome.metric == "jitter"
+            assert outcome.success is True
+            assert outcome.latency_ms is None
+            assert outcome.value == pytest.approx(7.071, rel=0.01)
+            assert json.loads(outcome.data or "{}")["samples"] == 5
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_packet_loss_runs_tcping_series_and_records_percentage(monkeypatch):
+    calls: list[tuple[str, int]] = []
+
+    async def fake_socks5_connect(
+        proxy_host: str,
+        proxy_port: int,
+        target_host: str,
+        target_port: int,
+        *,
+        timeout_ms: int,
+    ) -> float:
+        calls.append((target_host, target_port))
+        if len(calls) in {2, 5}:
+            raise RuntimeError("connect failed")
+        return 20.0
+
+    monkeypatch.setattr("app.probes.builtin.socks5_connect", fake_socks5_connect)
+    settings = Settings()
+    node = Node(name="node-a", listener_port=20000)
+    prober = PacketLossProber(samples=5)
+
+    outcome = (await prober.probe(ProbeContext(node, settings, None)))[0]
+
+    assert outcome.metric == "packet_loss"
+    assert outcome.success is True
+    assert outcome.value == 40.0
+    payload = json.loads(outcome.data or "{}")
+    assert payload["sent"] == 5
+    assert payload["failed"] == 2
+
+
+@pytest.mark.asyncio
+async def test_tls_and_http_probers_record_latency(monkeypatch):
+    async def fake_tls(*args, **kwargs) -> float:
+        return 31.5
+
+    async def fake_http(*args, **kwargs) -> float:
+        return 55.0
+
+    monkeypatch.setattr("app.probes.builtin.socks5_tls_handshake", fake_tls)
+    monkeypatch.setattr("app.probes.builtin.socks5_http_get", fake_http)
+
+    settings = Settings()
+    node = Node(name="node-a", listener_port=20000)
+    context = ProbeContext(node, settings, None)
+
+    tls = (await TlsHandshakeProber().probe(context))[0]
+    http = (await HttpRttProber().probe(context))[0]
+
+    assert tls.metric == "tls_handshake"
+    assert tls.latency_ms == 31.5
+    assert tls.value == 31.5
+    assert http.metric == "http_rtt"
+    assert http.latency_ms == 55.0
+    assert http.value == 55.0
+
+
+@pytest.mark.asyncio
+async def test_exit_ip_geo_prober_upserts_node_meta(monkeypatch):
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async def fake_json(*args, **kwargs) -> dict[str, object]:
+        return {
+            "ip": "203.0.113.10",
+            "asn": "AS64500",
+            "country_code": "US",
+            "region": "California",
+            "org": "Example ISP",
+        }
+
+    monkeypatch.setattr("app.probes.builtin.socks5_http_get_json", fake_json)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-a", listener_port=20000)
+            session.add(node)
+            await session.commit()
+
+            prober = ExitIpGeoProber(session_factory)
+            outcome = (await prober.probe(ProbeContext(node, Settings(), None)))[0]
+
+            assert outcome.metric == "exit_geo"
+            assert outcome.success is True
+            meta = await repository.get_node_meta(session, node.id)
+            assert meta is not None
+            assert meta.exit_ip == "203.0.113.10"
+            assert meta.asn == "AS64500"
+            assert meta.country == "US"
+            assert meta.region == "California"
+            assert meta.isp == "Example ISP"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_probe_service_runs_registered_probers_instead_of_hard_coded_metrics():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-a", listener_port=20000, status="unknown")
+            session.add(node)
+            await session.commit()
+
+        registry = ProbeRegistry([StaticProber()])
+        settings = Settings()
+        settings.probe.dimensions = ["custom_metric"]
+        service = ProbeService(settings, session_factory, registry=registry)
+
+        count, errors = await service._probe_node(
+            1,
+            client=None,
+            semaphore=asyncio.Semaphore(1),
+            mihomo_error=None,
+        )
+
+        assert count == 1
+        assert errors == 0
+        async with session_factory() as session:
+            latest = await repository.nodes_with_latest_metrics(
+                session,
+                metrics=["custom_metric"],
+            )
+            metric = latest[0]["metrics"]["custom_metric"]
+            assert metric.value == 42.5
+            assert metric.data == '{"source":"test"}'
+    finally:
+        await engine.dispose()

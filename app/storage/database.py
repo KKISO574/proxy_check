@@ -54,6 +54,13 @@ async def _upgrade_sqlite_schema(conn) -> None:
         return
     await _rebuild_legacy_nodes_table(conn)
     tables, columns = await conn.run_sync(inspect_schema)
+    if "probe_results" in tables:
+        if "value" not in columns.get("probe_results", set()):
+            await conn.execute(text("ALTER TABLE probe_results ADD COLUMN value FLOAT"))
+        if "data" not in columns.get("probe_results", set()):
+            await conn.execute(text("ALTER TABLE probe_results ADD COLUMN data TEXT"))
+    if "node_meta" not in tables:
+        await conn.run_sync(Base.metadata.tables["node_meta"].create)
     if "task_id" not in columns.get("nodes", set()):
         await conn.execute(text("ALTER TABLE nodes ADD COLUMN task_id INTEGER"))
     if "monitor_tasks" not in tables:

@@ -21,6 +21,14 @@ probe:
   import_timeout_ms: 30000
   retention_days: 30
   delay_url: https://cp.cloudflare.com/generate_204
+  dimensions:
+    - delay
+    - tcping
+    - tls_handshake
+    - http_rtt
+    - jitter
+    - packet_loss
+    - exit_geo
   tcp_targets:
     - host: 1.1.1.1
       port: 443

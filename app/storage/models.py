@@ -52,6 +52,11 @@ class Node(Base):
 
     task: Mapped[MonitorTask | None] = relationship(back_populates="nodes")
     results: Mapped[list["ProbeResult"]] = relationship(back_populates="node", cascade="all, delete-orphan")
+    meta: Mapped["NodeMeta | None"] = relationship(
+        back_populates="node",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class ProbeResult(Base):
@@ -62,8 +67,30 @@ class ProbeResult(Base):
     metric: Mapped[str] = mapped_column(String(32), index=True)
     target: Mapped[str] = mapped_column(String(255), default="")
     latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    data: Mapped[str | None] = mapped_column(Text, nullable=True)
     success: Mapped[bool] = mapped_column(Boolean, default=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
     node: Mapped[Node] = relationship(back_populates="results")
+
+
+class NodeMeta(Base):
+    __tablename__ = "node_meta"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    node_id: Mapped[int] = mapped_column(ForeignKey("nodes.id"), unique=True, index=True)
+    exit_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    asn: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    region: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    isp: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    netflix_unlock: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    disney_unlock: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    openai_unlock: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    youtube_unlock: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    dns_leak: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    node: Mapped[Node] = relationship(back_populates="meta")

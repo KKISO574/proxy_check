@@ -9,8 +9,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.clash_config import load_clash_nodes
 from app.core.config import Settings
+from app.probes.base import ProbeContext, ProbeOutcome
+from app.probes.builtin import (
+    DelayProber,
+    ExitIpGeoProber,
+    HttpRttProber,
+    JitterProber,
+    PacketLossProber,
+    TcpingProber,
+    TlsHandshakeProber,
+)
 from app.probes.mihomo import MihomoClient, MihomoManager, MihomoUnavailable
-from app.probes.tcping import socks5_connect
+from app.probes.registry import ProbeRegistry
 from app.services.port_allocator import allocate_for_task
 from app.storage import repository
 from app.storage.models import MonitorTask, Node, utcnow
@@ -31,10 +41,22 @@ class ProbeService:
         settings: Settings,
         session_factory: async_sessionmaker[AsyncSession],
         manager: MihomoManager | None = None,
+        registry: ProbeRegistry | None = None,
     ) -> None:
         self.settings = settings
         self.session_factory = session_factory
         self.manager = manager or MihomoManager(settings)
+        self.registry = registry or ProbeRegistry(
+            [
+                DelayProber(),
+                TcpingProber(),
+                TlsHandshakeProber(),
+                HttpRttProber(),
+                JitterProber(session_factory),
+                PacketLossProber(),
+                ExitIpGeoProber(session_factory),
+            ]
+        )
         self._run_lock = asyncio.Lock()
 
     async def sync_nodes(self, session: AsyncSession, task: MonitorTask | None = None) -> list[Node]:
@@ -182,90 +204,42 @@ class ProbeService:
                 node = await repository.get_node(session, node_id)
                 if node is None:
                     return 0, 1
-                results: list[dict[str, object]] = []
-                error_count = 0
+                results = await self._run_probers(node, client, mihomo_error)
+                error_count = len([result for result in results if not result.success])
 
-                if mihomo_error:
-                    results.append(
+                await repository.save_probe_batch(
+                    session,
+                    node,
+                    [
                         {
-                            "metric": "delay",
-                            "target": self.settings.probe.delay_url,
-                            "latency_ms": None,
-                            "success": False,
-                            "error": mihomo_error,
+                            "metric": result.metric,
+                            "target": result.target,
+                            "latency_ms": result.latency_ms,
+                            "value": result.value,
+                            "data": result.data,
+                            "success": result.success,
+                            "error": result.error,
                         }
-                    )
-                    error_count += 1
-                else:
-                    try:
-                        delay = await client.delay(
-                            node.name,
-                            url=self.settings.probe.delay_url,
-                            timeout_ms=self.settings.probe.timeout_ms,
-                        )
-                        results.append(
-                            {
-                                "metric": "delay",
-                                "target": self.settings.probe.delay_url,
-                                "latency_ms": delay,
-                                "success": True,
-                                "error": None,
-                            }
-                        )
-                    except Exception as exc:
-                        results.append(
-                            {
-                                "metric": "delay",
-                                "target": self.settings.probe.delay_url,
-                                "latency_ms": None,
-                                "success": False,
-                                "error": str(exc),
-                            }
-                        )
-                        error_count += 1
-
-                for target in self.settings.probe.tcp_targets:
-                    if mihomo_error or node.listener_port is None:
-                        results.append(
-                            {
-                                "metric": "tcping",
-                                "target": target.label,
-                                "latency_ms": None,
-                                "success": False,
-                                "error": mihomo_error or "listener port is not assigned",
-                            }
-                        )
-                        error_count += 1
-                        continue
-                    try:
-                        latency = await socks5_connect(
-                            self.settings.mihomo.listener_host,
-                            node.listener_port,
-                            target.host,
-                            target.port,
-                            timeout_ms=self.settings.probe.timeout_ms,
-                        )
-                        results.append(
-                            {
-                                "metric": "tcping",
-                                "target": target.label,
-                                "latency_ms": latency,
-                                "success": True,
-                                "error": None,
-                            }
-                        )
-                    except Exception as exc:
-                        results.append(
-                            {
-                                "metric": "tcping",
-                                "target": target.label,
-                                "latency_ms": None,
-                                "success": False,
-                                "error": str(exc),
-                            }
-                        )
-                        error_count += 1
-
-                await repository.save_probe_batch(session, node, results)
+                        for result in results
+                    ],
+                )
                 await session.commit()
                 return len(results), error_count
+
+    async def _run_probers(
+        self,
+        node: Node,
+        client: MihomoClient | None,
+        mihomo_error: str | None,
+    ) -> list[ProbeOutcome]:
+        context = ProbeContext(
+            node=node,
+            settings=self.settings,
+            client=client,
+            mihomo_error=mihomo_error,
+        )
+        results: list[ProbeOutcome] = []
+        probers = self.registry.enabled(self.settings.probe.dimensions)
+        for prober in probers:
+            results.extend(await prober.probe(context))
+        return results

@@ -7,7 +7,43 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.core.clash_config import ClashNode
-from app.storage.models import MonitorTask, Node, ProbeResult, utcnow
+from app.storage.models import MonitorTask, Node, NodeMeta, ProbeResult, utcnow
+
+
+class MetricSummary:
+    def __init__(
+        self,
+        *,
+        metric: str,
+        target: str,
+        latency_ms: float | None,
+        value: float | None,
+        data: str | None,
+        success: bool,
+        error: str | None,
+        created_at: datetime,
+    ) -> None:
+        self.metric = metric
+        self.target = target
+        self.latency_ms = latency_ms
+        self.value = value
+        self.data = data
+        self.success = success
+        self.error = error
+        self.created_at = created_at
+
+
+def metric_summary(result: ProbeResult) -> MetricSummary:
+    return MetricSummary(
+        metric=result.metric,
+        target=result.target,
+        latency_ms=result.latency_ms,
+        value=result.value,
+        data=result.data,
+        success=result.success,
+        error=result.error,
+        created_at=result.created_at,
+    )
 
 
 async def create_task(
@@ -131,6 +167,8 @@ async def add_probe_result(
     metric: str,
     target: str,
     latency_ms: float | None,
+    value: float | None = None,
+    data: str | None = None,
     success: bool,
     error: str | None,
     at: datetime | None = None,
@@ -140,6 +178,8 @@ async def add_probe_result(
         metric=metric,
         target=target,
         latency_ms=latency_ms,
+        value=value,
+        data=data,
         success=success,
         error=error,
         created_at=at or utcnow(),
@@ -167,6 +207,8 @@ async def save_probe_batch(
             metric=str(item["metric"]),
             target=str(item.get("target") or ""),
             latency_ms=item.get("latency_ms"),  # type: ignore[arg-type]
+            value=item.get("value"),  # type: ignore[arg-type]
+            data=item.get("data"),  # type: ignore[arg-type]
             success=success,
             error=item.get("error"),  # type: ignore[arg-type]
             at=timestamp,
@@ -188,45 +230,78 @@ async def nodes_with_latest_metrics(
     session: AsyncSession,
     *,
     task_id: int | None = None,
+    metrics: list[str] | None = None,
 ) -> list[dict[str, object]]:
-    delay_latest = (await latest_result_subquery("delay")).subquery()
-    tcp_latest = (await latest_result_subquery("tcping")).subquery()
-    delay_result = aliased(ProbeResult)
-    tcp_result = aliased(ProbeResult)
-
-    stmt = (
-        select(Node, delay_result, tcp_result)
-        .outerjoin(delay_latest, delay_latest.c.node_id == Node.id)
-        .outerjoin(
-            delay_result,
-            and_(
-                delay_result.node_id == Node.id,
-                delay_result.metric == "delay",
-                delay_result.id == delay_latest.c.result_id,
-            ),
+    metric_names = metrics
+    latest = (
+        select(ProbeResult.node_id, ProbeResult.metric, func.max(ProbeResult.id).label("result_id"))
+        .group_by(ProbeResult.node_id, ProbeResult.metric)
+        .subquery()
+    )
+    if metric_names is not None:
+        latest = (
+            select(ProbeResult.node_id, ProbeResult.metric, func.max(ProbeResult.id).label("result_id"))
+            .where(ProbeResult.metric.in_(metric_names))
+            .group_by(ProbeResult.node_id, ProbeResult.metric)
+            .subquery()
         )
-        .outerjoin(tcp_latest, tcp_latest.c.node_id == Node.id)
-        .outerjoin(
-            tcp_result,
-            and_(
-                tcp_result.node_id == Node.id,
-                tcp_result.metric == "tcping",
-                tcp_result.id == tcp_latest.c.result_id,
-            ),
+    result_alias = aliased(ProbeResult)
+    stmt = select(Node, result_alias).outerjoin(
+        latest,
+        latest.c.node_id == Node.id,
+    ).outerjoin(
+        result_alias,
+        and_(
+            result_alias.node_id == Node.id,
+            result_alias.metric == latest.c.metric,
+            result_alias.id == latest.c.result_id,
         )
     )
     if task_id is not None:
         stmt = stmt.where(Node.task_id == task_id)
     stmt = stmt.order_by(Node.name.asc())
     rows = (await session.execute(stmt)).all()
-    return [
-        {
-            "node": node,
-            "delay": delay,
-            "tcping": tcping,
-        }
-        for node, delay, tcping in rows
-    ]
+    by_node: dict[int, dict[str, object]] = {}
+    for node, result in rows:
+        item = by_node.setdefault(
+            node.id,
+            {
+                "node": node,
+                "metrics": {},
+                "delay": None,
+                "tcping": None,
+            },
+        )
+        if result is None:
+            continue
+        summary = metric_summary(result)
+        item["metrics"][result.metric] = summary  # type: ignore[index]
+        if result.metric == "delay":
+            item["delay"] = result
+        elif result.metric == "tcping":
+            item["tcping"] = result
+    return list(by_node.values())
+
+
+async def get_node_meta(session: AsyncSession, node_id: int) -> NodeMeta | None:
+    rows = await session.execute(select(NodeMeta).where(NodeMeta.node_id == node_id))
+    return rows.scalar_one_or_none()
+
+
+async def upsert_node_meta(
+    session: AsyncSession,
+    node: Node,
+    **values: str | None,
+) -> NodeMeta:
+    meta = await get_node_meta(session, node.id)
+    if meta is None:
+        meta = NodeMeta(node_id=node.id)
+        session.add(meta)
+    for key, value in values.items():
+        setattr(meta, key, value)
+    meta.updated_at = utcnow()
+    await session.flush()
+    return meta
 
 
 async def node_history(

@@ -4,7 +4,9 @@
 
 Proxy Node Quality Detection Platform
 
-A distributed proxy node quality monitoring and scoring platform based on Mihomo (Clash Meta).
+A proxy node quality monitoring platform based on Mihomo (Clash Meta).
+The current `README.md` defines the delivered v1 scope. This file is the
+long-term engineering blueprint and roadmap.
 
 The system continuously tests all proxy nodes concurrently and records:
 
@@ -24,9 +26,12 @@ The system continuously tests all proxy nodes concurrently and records:
 - bandwidth
 - historical stability
 
-The platform exposes:
+The platform exposes now:
 
 - REST API
+
+Future platform phases add:
+
 - WebSocket live updates
 - Prometheus metrics
 - Grafana dashboards
@@ -36,6 +41,9 @@ The platform MUST support:
 - high concurrency
 - async workers
 - low resource usage
+
+Long-term phases SHOULD support:
+
 - distributed probe nodes
 
 ---
@@ -69,7 +77,7 @@ GET /proxies/{name}/delay
 
 # Testing Requirements
 
-## Every node must support:
+## Current v1 probes
 
 ### 1. Delay test
 
@@ -102,6 +110,8 @@ Targets:
 - 8.8.8.8
 
 ---
+
+## Roadmap probes
 
 ### 3. TLS handshake time
 
@@ -199,10 +209,13 @@ Responsible only for proxy transport.
 Responsible for:
 
 - periodic testing
-- distributed scheduling
-- worker assignment
 - retry
 - timeout
+
+Future distributed phases add:
+
+- distributed scheduling
+- worker assignment
 
 ---
 
@@ -221,26 +234,30 @@ Must support:
 
 ### 4. Storage Layer
 
-Use:
+Current storage:
 
 - SQLite initially
 - abstract storage interface
-- later support PostgreSQL
 
-Tables:
+PostgreSQL is not planned until a real production need appears.
+
+Current tables:
 
 - nodes
-- test_results
-- latency_history
-- bandwidth_history
-- unlock_status
+- monitor_tasks
+- probe_results
+
+Roadmap tables:
+
+- node_meta
 - probe_agents
 
 ---
 
 ### 5. Metrics
 
-Expose Prometheus metrics.
+Metrics are currently exposed through REST API responses. Prometheus is a
+v3 observability task.
 
 Examples:
 
@@ -254,9 +271,9 @@ Examples:
 
 ### 6. Dashboard
 
-Use Grafana.
+Current dashboard: React + Vite + TypeScript + Recharts.
 
-Provide dashboard JSON examples.
+Grafana dashboard JSON examples are a v3 observability task.
 
 ---
 
@@ -278,6 +295,210 @@ Avoid:
 
 - threading
 - blocking requests
+
+---
+
+# Implementation Status
+
+This section reflects what currently lives on `master`. Use it as the
+single source of truth before picking up any task — anything not listed
+as **Done** belongs in the Roadmap below.
+
+## Done (v1.x)
+
+### Backend
+
+- **Mihomo integration** (`app/probes/mihomo.py`)
+  - Subprocess managed under `MihomoManager`; stop / start swap with
+    `_wait_ready()` polling `GET /version` 30 × 100 ms before returning
+  - `MihomoClient.delay()` calls `/proxies/{name}/delay` against the
+    External Controller API
+  - Listener port map passed in explicitly (no formula), so DB-stored
+    ports match the runtime YAML
+- **Probes**
+  - `delay` via Clash API → target `https://cp.cloudflare.com/generate_204`
+  - `tcping` via per-node `mixed` listener → SOCKS5 CONNECT to
+    `1.1.1.1:443/80` and `8.8.8.8:443/80`
+- **Multi-config tasks**
+  - `MonitorTask` row per imported Clash YAML URL (`http`/`https` only)
+  - Task CRUD/refresh/run REST endpoints (see API Design)
+  - Per-task `interval_seconds`; scheduler runs only due tasks
+  - Cached YAML lives at `mihomo.imported_config_dir/task-{id}.yaml`;
+    URL is re-downloaded only on create / URL edit / manual refresh
+  - Same node name across tasks is **not** merged
+- **Listener port allocation** (`app/services/port_allocator.py`)
+  - Gap-finding allocator over `[listener_port_start, listener_port_max]`
+  - Stable existing assignments; cross-task port collisions impossible
+  - Range exhaustion raises `MihomoUnavailable`
+- **Config import** (`app/services/config_import.py`)
+  - URL fetch under `probe.import_timeout_ms` (default 30 s, separate
+    from `probe.timeout_ms`)
+  - YAML validated before write; atomic file replace
+- **Scheduler** (`app/scheduler/runner.py`)
+  - Single asyncio loop, 5 s polling granularity, runs `task.next_run_at`
+    that has fallen due
+- **Storage**
+  - SQLite via SQLAlchemy 2.0 async + aiosqlite
+  - Tables: `monitor_tasks`, `nodes` (FK→tasks, `UniqueConstraint(task_id, name)`),
+    `probe_results`
+  - Migration: legacy global-unique `nodes` table is rebuilt; missing
+    `task_id` column is added; default task seeded for orphan rows
+- **REST API** (`app/api/routes.py`)
+  - `/api/tasks` CRUD/refresh/run
+  - `/api/nodes`, `/api/nodes/{id}`, `/api/nodes/{id}/history`
+  - `/api/stats`, `/api/tests/run`
+- **Retention**: probe results older than `probe.retention_days`
+  (default 30) are pruned each run
+
+### Frontend
+
+- React 18 + Vite + TypeScript + Recharts UI under `frontend/`
+- Multi-task sidebar with import/edit/refresh/run/delete
+- Node table with delay & tcping columns, status badges
+- Detail panel: delay & tcping line charts, recent error log
+- Polled refresh, selected task preserved across polls
+
+### DevOps & Tooling
+
+- Docker multi-stage build (Node 22 builder → Python 3.12 slim runtime)
+- `docker-compose.yml`; `APP_PORT` host-port override
+- `scripts/download_mihomo.py` for per-platform binary fetch
+- `pytest` suite covering tasks, scheduler, port allocator, mihomo
+  health, migration, clash config, tcping
+
+---
+
+# Roadmap
+
+What's left vs. the original blueprint above. Keep detailed execution
+plans under `docs/plans/` before implementation; this section is the
+high-level map.
+
+## Direction
+
+- **v1.x Done**: multi-config URL import, monitor tasks, Mihomo process
+  management, `delay` + `tcping`, SQLite history, React dashboard,
+  Docker deployment, and basic REST API.
+- **v2 Next**: metric abstraction, more probe dimensions, exit
+  IP/ASN/GEO enrichment, and frontend metric tabs.
+- **v3+ Later**: scoring, Prometheus/Grafana, WebSocket alerts,
+  distributed probe agents, and advanced risk/anomaly detection.
+
+## Execution priority
+
+- **P0 Done**: v2.0 metric model refactor (`ProbeResult.value/data`,
+  `MetricSummary`, `Prober` registry).
+- **P1 Done**: v2.1 low-risk metrics: `tls_handshake`, `http_rtt`,
+  `jitter`, `packet_loss`. Bandwidth tests remain delayed until
+  timeout and traffic controls are clear.
+- **P2 Partial Done**: v2.2 node enrichment: exit IP, ASN, country,
+  region, ISP via `NodeMeta`.
+- **P3 Partial Done**: v2.3 frontend: metric tabs, NodeMeta card, and
+  country/ASN columns and filters.
+- **P4**: v3 observability: score, Prometheus, Grafana examples,
+  structured logging.
+- **P5**: v4/v5 realtime alerts and distributed probes after the
+  single-node metric model is stable.
+
+## Do not start with
+
+- Base64 subscription parsing or `proxy-providers` expansion.
+- Netflix/Disney/YouTube unlock and DNS leak before `NodeMeta` and
+  generic probers exist.
+- PostgreSQL or distributed probe agents before the single-node model is
+  stable.
+
+## v2 — Probe dimensions + node enrichment (next)
+
+Two main lines, requiring a small core refactor first.
+
+### v2.0 Core abstractions (done)
+
+- `ProbeResult` schema: add `value: float | None` and `data: str | None`
+  (JSON) for non-latency metrics (mbps, percentages, sample arrays);
+  keep `latency_ms` during transition
+- `NodeMeta` table for non-time-series fields (one-to-one with `Node`):
+  `exit_ip / asn / country / region / isp / netflix_unlock /
+  disney_unlock / openai_unlock / youtube_unlock / dns_leak`
+- `Prober` Protocol + registry (`app/probes/base.py`,
+  `app/probes/registry.py`); each prober declares its own
+  `metric` and `interval_seconds`
+- Refactor `_probe_node` to iterate the registry instead of hard-coding
+  delay + tcping
+- `nodes_with_latest_metrics` parameterized by metric list; API +
+  frontend types switch to `metrics: dict[str, MetricSummary]`
+
+### v2.1 New probe dimensions (partial done)
+
+| Metric | Source | Interval |
+|---|---|---|
+| `tls_handshake` | SOCKS5 + `ssl.create_default_context()` to `cp.cloudflare.com:443` | 60 s |
+| `http_rtt` | SOCKS5 + GET `https://www.gstatic.com/generate_204` | 60 s |
+| `jitter` | derived: stddev of last 20 `delay` samples | derived |
+| `packet_loss` | 20 × tcping series, success rate as percentage | 5 min |
+| `bandwidth_dl_1mb` / `bandwidth_dl_10mb` | SOCKS5 download from `speed.cloudflare.com/__down` | 30 min |
+
+Done: `tls_handshake`, `http_rtt`, `jitter`, and `packet_loss`.
+Deferred: `bandwidth_dl_1mb` / `bandwidth_dl_10mb`.
+
+Config: `probe.dimensions: list[str]` gates which probers are registered.
+
+### v2.2 Node enrichment (partial done)
+
+These probers write to `NodeMeta` (upsert) instead of `ProbeResult`.
+
+| Field group | Source | Interval |
+|---|---|---|
+| `exit_ip / asn / country / region / isp` | `https://ipapi.co/json` (fallback `api.ip.sb/geoip`) | 30 min |
+| `netflix_unlock` | Netflix title page response analysis | 1 h |
+| `disney_unlock` | Disney+ GraphQL device endpoint | 1 h |
+| `openai_unlock` | `chat.openai.com/cdn-cgi/trace` `loc=` field | 1 h |
+| `youtube_region` | YouTube `/red` endpoint region detection | 1 h |
+| `dns_leak` | dnsleaktest results-json | 1 h |
+
+Done: `exit_ip / asn / country / region / isp` via `exit_geo`.
+Deferred: streaming unlock and DNS leak probes.
+
+### v2.3 Frontend
+
+- Done: NodeMeta card, metric tabs auto-generated from `metrics` dict,
+  country/ASN columns, and filters by country/ASN.
+- Next: country flag display, unlock badges (N / D / O / Y), and filters
+  by unlock status after unlock probes exist.
+
+## v3 — Observability & scoring
+
+- 0–100 weighted node score (latency + loss + jitter + availability +
+  bandwidth + unlock weights)
+- Prometheus `/metrics` endpoint (`node_latency_ms`,
+  `node_packet_loss`, `node_jitter`, `node_availability`,
+  `node_bandwidth_mbps`)
+- Grafana dashboard JSON examples
+- Replace `logging` with `structlog`
+
+## v4 — Realtime & alerting
+
+- WebSocket `/api/ws` push for status changes
+- Telegram / WeCom webhook on `available → down` transitions
+
+## v5 — Distributed probes
+
+- New `probe_agents` table
+- agent ↔ controller protocol (gRPC or HTTP)
+- Multi-region scheduling and result aggregation
+
+## v6 — Advanced detection
+
+- Route tracing
+- ASN blacklist / risk ASN classification
+- Anomaly detection on historical trends
+
+## Explicitly out of scope (no plan to add)
+
+- Base64 subscription parsing
+- `proxy-providers` expansion
+- PostgreSQL backend (storage interface stays abstract but no driver
+  planned until a real need surfaces)
 
 ---
 
@@ -335,39 +556,39 @@ within the task).
 
 Trigger an immediate detection round for one task.
 
-### GET /nodes
+### GET /api/nodes
 
 List all nodes. Pass `?task_id={id}` to scope the list to one monitor task.
 
 ---
 
-### GET /nodes/{id}
+### GET /api/nodes/{id}
 
 Node details.
 
 ---
 
-### GET /nodes/{id}/history
+### GET /api/nodes/{id}/history
 
 Historical metrics. Use `?metric=delay|tcping&range=1h|6h|24h|7d|30d`.
 
 ---
 
-### GET /stats
+### GET /api/stats
 
 Global statistics. Pass `?task_id={id}` for per-task aggregates.
 
 ---
 
-### POST /test/{id}
+### POST /api/tests/run
 
-Trigger immediate test.
+Trigger an immediate detection round for the legacy local-config mode.
 
 ---
 
 ### WebSocket
 
-Provide real-time updates.
+Future v4 task: provide real-time updates through `/api/ws`.
 
 ---
 
@@ -417,13 +638,12 @@ Libraries:
 
 ## Frontend
 
-Optional.
+Current implementation:
 
-If implemented:
-
-- React
-- Next.js
-- Tailwind
+- React 18
+- Vite
+- TypeScript
+- Recharts
 
 ---
 
@@ -440,7 +660,8 @@ If implemented:
 
 ## Logging
 
-Use structured logging.
+Current implementation uses standard Python logging. Structured logging is
+a v3 observability task.
 
 Recommended:
 
@@ -458,7 +679,8 @@ Use:
 config.yaml
 ```
 
-Support hot reload.
+Config hot reload is not part of v1; add it only if a future operational
+need appears.
 
 ---
 
@@ -482,17 +704,17 @@ project/
 │   ├── api/
 │   ├── core/
 │   ├── scheduler/
-│   ├── workers/
 │   ├── probes/
 │   ├── storage/
-│   ├── services/
-│   ├── models/
-│   └── utils/
+│   └── services/
 ├── configs/
-├── dashboards/
+├── frontend/
 ├── scripts/
 ├── tests/
-├── docker/
+├── data/       # ignored runtime SQLite data
+├── runtime/    # ignored Mihomo binaries/config cache
+├── Dockerfile
+├── docker-compose.yml
 └── AGENT.md
 ```
 
@@ -520,44 +742,35 @@ asyncio.Semaphore(50)
 
 # Failure Handling
 
-Support:
+Current support:
 
-- retry
 - timeout
+- single-node failure isolation
+- historical success/error persistence
+
+Future support:
+
+- retry policy
 - dead node quarantine
 - cooldown
 
 ---
 
-# Future Features
-
-Support future extensions:
-
-- distributed probes
-- global multi-region probes
-- Telegram notifications
-- WeCom notifications
-- OpenAI availability tracking
-- route tracing
-- ASN blacklist
-- risk ASN detection
-- historical trend analysis
-- anomaly detection
-
----
-
 # Deployment
 
-Support:
+Current support:
 
 - Docker
 - docker-compose
+
+Future support:
+
 - systemd
 
 Provide:
 
 - example compose files
-- production configs
+- production configs when hardening for a real deployment target
 
 ---
 
@@ -601,13 +814,5 @@ https://captive.apple.com
 
 # Priority
 
-Implementation priority:
-
-1. Clash API integration
-2. Concurrent delay testing
-3. Storage
-4. REST API
-5. Metrics
-6. Dashboard
-7. Advanced scoring
-8. Distributed architecture
+The original implementation order was the v1 plan; the current
+phasing lives in **Roadmap** above (v2 → v3 → v4 → v5 → v6).

@@ -43,6 +43,17 @@ class ProbeConfig(BaseModel):
     import_timeout_ms: int = 30000
     retention_days: int = 30
     delay_url: str = "https://cp.cloudflare.com/generate_204"
+    dimensions: list[str] = Field(
+        default_factory=lambda: [
+            "delay",
+            "tcping",
+            "tls_handshake",
+            "http_rtt",
+            "jitter",
+            "packet_loss",
+            "exit_geo",
+        ]
+    )
     tcp_targets: list[TcpTarget] = Field(
         default_factory=lambda: [
             TcpTarget(host="1.1.1.1", port=443),

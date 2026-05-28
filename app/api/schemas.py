@@ -5,6 +5,30 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class MetricSummary(BaseModel):
+    metric: str
+    target: str
+    latency_ms: float | None
+    value: float | None
+    data: str | None
+    success: bool
+    error: str | None
+    created_at: datetime
+
+
+class NodeMetaResponse(BaseModel):
+    exit_ip: str | None = None
+    asn: str | None = None
+    country: str | None = None
+    region: str | None = None
+    isp: str | None = None
+    netflix_unlock: str | None = None
+    disney_unlock: str | None = None
+    openai_unlock: str | None = None
+    youtube_unlock: str | None = None
+    dns_leak: str | None = None
+
+
 class NodeListItem(BaseModel):
     id: int
     task_id: int | None = None
@@ -17,6 +41,8 @@ class NodeListItem(BaseModel):
     latest_delay_ms: float | None
     latest_tcping_ms: float | None
     latest_tcping_target: str | None
+    metrics: dict[str, MetricSummary]
+    meta: NodeMetaResponse | None = None
     last_checked_at: datetime | None
 
 
@@ -29,6 +55,8 @@ class ProbePoint(BaseModel):
     metric: str
     target: str
     latency_ms: float | None
+    value: float | None = None
+    data: str | None = None
     success: bool
     error: str | None
 

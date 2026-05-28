@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import (
+    MetricSummary,
     NodeDetail,
     NodeListItem,
+    NodeMetaResponse,
     ProbePoint,
     RunResponse,
     StatsResponse,
@@ -35,6 +37,36 @@ def task_item(task: MonitorTask, node_count: int) -> TaskListItem:
         last_refresh_error=task.last_refresh_error,
         last_checked_at=task.last_checked_at,
         next_run_at=task.next_run_at,
+    )
+
+
+def metric_response(summary: object) -> MetricSummary:
+    return MetricSummary(
+        metric=summary.metric,
+        target=summary.target,
+        latency_ms=summary.latency_ms,
+        value=summary.value,
+        data=summary.data,
+        success=summary.success,
+        error=summary.error,
+        created_at=summary.created_at,
+    )
+
+
+def node_meta_response(meta: object | None) -> NodeMetaResponse | None:
+    if meta is None:
+        return None
+    return NodeMetaResponse(
+        exit_ip=meta.exit_ip,
+        asn=meta.asn,
+        country=meta.country,
+        region=meta.region,
+        isp=meta.isp,
+        netflix_unlock=meta.netflix_unlock,
+        disney_unlock=meta.disney_unlock,
+        openai_unlock=meta.openai_unlock,
+        youtube_unlock=meta.youtube_unlock,
+        dns_leak=meta.dns_leak,
     )
 
 
@@ -129,6 +161,11 @@ async def list_nodes(
         node = item["node"]
         delay = item["delay"]
         tcping = item["tcping"]
+        metrics = {
+            name: metric_response(summary)
+            for name, summary in item["metrics"].items()
+        }
+        meta = await repository.get_node_meta(session, node.id)
         output.append(
             NodeListItem(
                 id=node.id,
@@ -142,6 +179,8 @@ async def list_nodes(
                 latest_delay_ms=delay.latency_ms if delay is not None else None,
                 latest_tcping_ms=tcping.latency_ms if tcping is not None else None,
                 latest_tcping_target=tcping.target if tcping is not None else None,
+                metrics=metrics,
+                meta=node_meta_response(meta),
                 last_checked_at=node.last_checked_at,
             )
         )
@@ -160,6 +199,11 @@ async def node_detail(
     latest_for_node = next((item for item in latest if item["node"].id == node_id), None)
     delay = latest_for_node["delay"] if latest_for_node is not None else None
     tcping = latest_for_node["tcping"] if latest_for_node is not None else None
+    metrics = {
+        name: metric_response(summary)
+        for name, summary in (latest_for_node["metrics"] if latest_for_node is not None else {}).items()
+    }
+    meta = await repository.get_node_meta(session, node.id)
     errors = await repository.recent_errors(session, node_id)
     return NodeDetail(
         id=node.id,
@@ -173,6 +217,8 @@ async def node_detail(
         latest_delay_ms=delay.latency_ms if delay is not None else None,
         latest_tcping_ms=tcping.latency_ms if tcping is not None else None,
         latest_tcping_target=tcping.target if tcping is not None else None,
+        metrics=metrics,
+        meta=node_meta_response(meta),
         last_checked_at=node.last_checked_at,
         recent_errors=[
             ProbePoint(
@@ -180,6 +226,8 @@ async def node_detail(
                 metric=item.metric,
                 target=item.target,
                 latency_ms=item.latency_ms,
+                value=item.value,
+                data=item.data,
                 success=item.success,
                 error=item.error,
             )
@@ -191,7 +239,7 @@ async def node_detail(
 @router.get("/nodes/{node_id}/history", response_model=list[ProbePoint])
 async def node_history(
     node_id: int,
-    metric: str = Query(pattern="^(delay|tcping)$"),
+    metric: str = Query(pattern="^[A-Za-z0-9_:-]+$"),
     range: str = Query(default="24h", pattern="^(1h|6h|24h|7d|30d)$"),
     session: AsyncSession = Depends(get_session),
 ) -> list[ProbePoint]:
@@ -205,6 +253,8 @@ async def node_history(
             metric=item.metric,
             target=item.target,
             latency_ms=item.latency_ms,
+            value=item.value,
+            data=item.data,
             success=item.success,
             error=item.error,
         )

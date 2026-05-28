@@ -45,6 +45,20 @@ import "./styles.css";
 type StatusFilter = "all" | "available" | "down" | "unknown";
 type RangeFilter = "1h" | "6h" | "24h" | "7d" | "30d";
 type SortKey = "name" | "status" | "delay";
+type ChartMetric = {
+  key: string;
+  label: string;
+  color: string;
+};
+
+const DEFAULT_CHART_METRICS: ChartMetric[] = [
+  { key: "delay", label: "真延迟", color: "#16a34a" },
+  { key: "tcping", label: "tcping", color: "#2563eb" }
+];
+
+function isPresent(value: string | null | undefined): value is string {
+  return Boolean(value);
+}
 
 function formatLatency(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "-";
@@ -294,6 +308,7 @@ function NodeTable({
           <tr>
             <th>节点</th>
             <th>状态</th>
+            <th>地区</th>
             <th>真延迟</th>
             <th>tcping</th>
             <th>入口</th>
@@ -313,6 +328,10 @@ function NodeTable({
               </td>
               <td>
                 <StatusBadge status={node.status} />
+              </td>
+              <td>
+                <div>{node.meta?.country ?? "-"}</div>
+                <span className="muted">{node.meta?.asn ?? "-"}</span>
               </td>
               <td>{formatLatency(node.latest_delay_ms)}</td>
               <td>
@@ -380,21 +399,63 @@ function ChartPanel({ title, points, color }: { title: string; points: ProbePoin
   );
 }
 
+function MetaPanel({ detail }: { detail: NodeDetail | null }) {
+  const meta = detail?.meta;
+  const items = [
+    ["出口 IP", meta?.exit_ip],
+    ["ASN", meta?.asn],
+    ["国家", meta?.country],
+    ["地区", meta?.region],
+    ["ISP", meta?.isp]
+  ];
+
+  return (
+    <section className="meta-panel">
+      <div className="panel-title">
+        <h3>节点画像</h3>
+        <span>{meta?.exit_ip ? "已识别" : "待检测"}</span>
+      </div>
+      <div className="meta-grid">
+        {items.map(([label, value]) => (
+          <div className="meta-item" key={label}>
+            <span>{label}</span>
+            <strong>{value || "-"}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function DetailPane({
   selected,
   detail,
-  delayHistory,
-  tcpHistory,
+  histories,
   range,
   onRangeChange
 }: {
   selected: NodeItem | null;
   detail: NodeDetail | null;
-  delayHistory: ProbePoint[];
-  tcpHistory: ProbePoint[];
+  histories: Record<string, ProbePoint[]>;
   range: RangeFilter;
   onRangeChange: (range: RangeFilter) => void;
 }) {
+  const chartMetrics = useMemo(() => {
+    const keys = new Set(DEFAULT_CHART_METRICS.map((metric) => metric.key));
+    for (const key of Object.keys(detail?.metrics ?? {})) {
+      keys.add(key);
+    }
+    return Array.from(keys).map((key, index) => {
+      const predefined = DEFAULT_CHART_METRICS.find((metric) => metric.key === key);
+      if (predefined) return predefined;
+      return {
+        key,
+        label: key,
+        color: ["#7c3aed", "#dc2626", "#0891b2", "#ca8a04"][index % 4]
+      };
+    });
+  }, [detail?.metrics]);
+
   return (
     <aside className="detail-pane">
       {!selected ? (
@@ -423,8 +484,16 @@ function DetailPane({
             ))}
           </div>
 
-          <ChartPanel title="真延迟" points={delayHistory} color="#16a34a" />
-          <ChartPanel title="tcping" points={tcpHistory} color="#2563eb" />
+          <MetaPanel detail={detail} />
+
+          {chartMetrics.map((metric) => (
+            <ChartPanel
+              key={metric.key}
+              title={metric.label}
+              points={histories[metric.key] ?? []}
+              color={metric.color}
+            />
+          ))}
 
           <section className="error-panel">
             <div className="panel-title">
@@ -458,9 +527,10 @@ function App() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<NodeDetail | null>(null);
-  const [delayHistory, setDelayHistory] = useState<ProbePoint[]>([]);
-  const [tcpHistory, setTcpHistory] = useState<ProbePoint[]>([]);
+  const [histories, setHistories] = useState<Record<string, ProbePoint[]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [countryFilter, setCountryFilter] = useState("all");
+  const [asnFilter, setAsnFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("delay");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<RangeFilter>("24h");
@@ -533,8 +603,7 @@ function App() {
   useEffect(() => {
     selectNodeId(null);
     setDetail(null);
-    setDelayHistory([]);
-    setTcpHistory([]);
+    setHistories({});
     setLoading(true);
     void loadOverview(selectedTaskId);
   }, [selectedTaskId]);
@@ -544,14 +613,15 @@ function App() {
     const nodeId = selectedId;
     async function loadDetail() {
       try {
-        const [nextDetail, delay, tcping] = await Promise.all([
-          fetchNode(nodeId),
-          fetchHistory(nodeId, "delay", range),
-          fetchHistory(nodeId, "tcping", range)
-        ]);
+        const nextDetail = await fetchNode(nodeId);
+        const metricKeys = Array.from(
+          new Set([...DEFAULT_CHART_METRICS.map((metric) => metric.key), ...Object.keys(nextDetail.metrics)])
+        );
+        const historyRows = await Promise.all(
+          metricKeys.map(async (metric) => [metric, await fetchHistory(nodeId, metric, range)] as const)
+        );
         setDetail(nextDetail);
-        setDelayHistory(delay);
-        setTcpHistory(tcping);
+        setHistories(Object.fromEntries(historyRows));
       } catch (exc) {
         setError(exc instanceof Error ? exc.message : String(exc));
       }
@@ -563,11 +633,15 @@ function App() {
     const term = search.trim().toLowerCase();
     const rows = nodes.filter((node) => {
       const statusOk = statusFilter === "all" || node.status === statusFilter;
+      const countryOk = countryFilter === "all" || node.meta?.country === countryFilter;
+      const asnOk = asnFilter === "all" || node.meta?.asn === asnFilter;
       const searchOk =
         term.length === 0 ||
         node.name.toLowerCase().includes(term) ||
-        (node.server ?? "").toLowerCase().includes(term);
-      return statusOk && searchOk;
+        (node.server ?? "").toLowerCase().includes(term) ||
+        (node.meta?.exit_ip ?? "").toLowerCase().includes(term) ||
+        (node.meta?.asn ?? "").toLowerCase().includes(term);
+      return statusOk && countryOk && asnOk && searchOk;
     });
     return rows.sort((a, b) => {
       if (sortKey === "name") return a.name.localeCompare(b.name);
@@ -576,7 +650,16 @@ function App() {
       const right = b.latest_delay_ms ?? Number.POSITIVE_INFINITY;
       return left - right;
     });
-  }, [nodes, search, sortKey, statusFilter]);
+  }, [nodes, asnFilter, countryFilter, search, sortKey, statusFilter]);
+
+  const countries = useMemo(
+    () => Array.from(new Set(nodes.map((node) => node.meta?.country).filter(isPresent))).sort(),
+    [nodes]
+  );
+  const asns = useMemo(
+    () => Array.from(new Set(nodes.map((node) => node.meta?.asn).filter(isPresent))).sort(),
+    [nodes]
+  );
 
   const selected = nodes.find((node) => node.id === selectedId) ?? null;
 
@@ -729,6 +812,22 @@ function App() {
                 <option value="down">异常</option>
                 <option value="unknown">未知</option>
               </select>
+              <select value={countryFilter} onChange={(event) => setCountryFilter(event.target.value)}>
+                <option value="all">全部国家</option>
+                {countries.map((country) => (
+                  <option key={country} value={country}>
+                    {country}
+                  </option>
+                ))}
+              </select>
+              <select value={asnFilter} onChange={(event) => setAsnFilter(event.target.value)}>
+                <option value="all">全部 ASN</option>
+                {asns.map((asn) => (
+                  <option key={asn} value={asn}>
+                    {asn}
+                  </option>
+                ))}
+              </select>
               <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
                 <option value="delay">按延迟</option>
                 <option value="status">按状态</option>
@@ -749,8 +848,7 @@ function App() {
           <DetailPane
             selected={selected}
             detail={detail}
-            delayHistory={delayHistory}
-            tcpHistory={tcpHistory}
+            histories={histories}
             range={range}
             onRangeChange={setRange}
           />

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ipaddress
+import socket
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -16,6 +18,52 @@ from app.storage.models import MonitorTask, Node, utcnow
 
 class ConfigImportError(RuntimeError):
     pass
+
+
+# Properties that mark an IP as not safely reachable from a public service.
+# `is_private` covers RFC1918 + 127.0.0.0/8 + RFC4193 unique-local IPv6;
+# `is_loopback` is redundant with `is_private` on modern Python but kept for clarity;
+# `is_link_local` blocks 169.254.0.0/16 (incl. cloud metadata 169.254.169.254) and fe80::/10;
+# `is_reserved` blocks 240.0.0.0/4 and other IETF-reserved ranges.
+_BLOCKED_IP_PROPERTIES: tuple[str, ...] = (
+    "is_private",
+    "is_loopback",
+    "is_link_local",
+    "is_reserved",
+)
+
+
+def _resolve_and_validate_host(host: str) -> list[str]:
+    """Resolve ``host`` to every A/AAAA address and reject private/internal IPs.
+
+    Used by :class:`ConfigImportService` to defend against SSRF attacks where a
+    user-supplied subscription URL points at a private network (cloud metadata,
+    Docker bridge, internal services). DNS rebinding remains a residual concern
+    — callers must not expect the resolution result to match what aiohttp will
+    later resolve, so this is a best-effort guard, not a guarantee.
+    """
+    if not host:
+        raise ConfigImportError("config URL host is required")
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as exc:
+        raise ConfigImportError(f"failed to resolve host {host!r}: {exc}") from exc
+    addresses: list[str] = []
+    for info in infos:
+        sockaddr = info[4]
+        ip_str = sockaddr[0]
+        # IPv6 scoped addresses look like "fe80::1%eth0"; strip the zone for parsing.
+        ip_for_parse = ip_str.split("%", 1)[0]
+        try:
+            ip = ipaddress.ip_address(ip_for_parse)
+        except ValueError as exc:
+            raise ConfigImportError(f"unparseable address {ip_str!r}: {exc}") from exc
+        if any(getattr(ip, prop) for prop in _BLOCKED_IP_PROPERTIES):
+            raise ConfigImportError("private/internal addresses are blocked")
+        addresses.append(ip_str)
+    if not addresses:
+        raise ConfigImportError(f"no addresses resolved for host {host!r}")
+    return addresses
 
 
 class ConfigImportService:
@@ -36,9 +84,19 @@ class ConfigImportService:
 
     async def fetch_url(self, url: str) -> str:
         self.validate_url(url)
+        parsed = urlparse(url)
+        _resolve_and_validate_host(parsed.hostname or "")
         timeout = aiohttp.ClientTimeout(total=self.settings.probe.import_timeout_ms / 1000)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url) as response:
+            async with session.get(url, allow_redirects=False) as response:
+                if 300 <= response.status < 400:
+                    # We refuse to follow redirects ourselves: a 301 to a
+                    # private IP would slip past the SSRF guard above. Ask
+                    # the user to provide the final URL directly.
+                    raise ConfigImportError(
+                        f"redirects are not followed (status={response.status}); "
+                        "submit the final URL directly"
+                    )
                 response.raise_for_status()
                 return await response.text()
 

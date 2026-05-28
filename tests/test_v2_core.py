@@ -273,6 +273,83 @@ async def test_exit_ip_geo_prober_upserts_node_meta(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_exit_ip_geo_prober_falls_back_when_primary_endpoint_fails(monkeypatch):
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    calls: list[str] = []
+
+    async def fake_json(host_arg, port_arg, host, port, path, **kwargs):
+        calls.append(host)
+        if host == "ipapi.co":
+            raise RuntimeError("rate limited")
+        # api.ip.sb shape: organization instead of org, otherwise overlaps.
+        return {
+            "ip": "198.51.100.7",
+            "asn": "AS65001",
+            "country_code": "JP",
+            "region": "Tokyo",
+            "organization": "Backup ISP",
+        }
+
+    monkeypatch.setattr("app.probes.builtin.socks5_http_get_json", fake_json)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-fallback", listener_port=20000)
+            session.add(node)
+            await session.commit()
+
+            prober = ExitIpGeoProber(session_factory)
+            outcome = (await prober.probe(ProbeContext(node, Settings(), None)))[0]
+
+            assert calls == ["ipapi.co", "api.ip.sb"]
+            assert outcome.success is True
+            assert outcome.target == "https://api.ip.sb/geoip"
+            meta = await repository.get_node_meta(session, node.id)
+            assert meta is not None
+            assert meta.exit_ip == "198.51.100.7"
+            assert meta.asn == "AS65001"
+            assert meta.country == "JP"
+            assert meta.region == "Tokyo"
+            assert meta.isp == "Backup ISP"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_exit_ip_geo_prober_records_failure_when_both_endpoints_fail(monkeypatch):
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async def fake_json(host_arg, port_arg, host, port, path, **kwargs):
+        raise RuntimeError(f"{host} down")
+
+    monkeypatch.setattr("app.probes.builtin.socks5_http_get_json", fake_json)
+
+    try:
+        async with session_factory() as session:
+            node = Node(name="node-down", listener_port=20000)
+            session.add(node)
+            await session.commit()
+
+            prober = ExitIpGeoProber(session_factory)
+            outcome = (await prober.probe(ProbeContext(node, Settings(), None)))[0]
+
+            assert outcome.success is False
+            assert "ipapi.co" in (outcome.error or "")
+            assert "api.ip.sb" in (outcome.error or "")
+            meta = await repository.get_node_meta(session, node.id)
+            assert meta is None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_probe_service_runs_registered_probers_instead_of_hard_coded_metrics():
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     session_factory = async_sessionmaker(engine, expire_on_commit=False)

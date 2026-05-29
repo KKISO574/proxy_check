@@ -101,6 +101,16 @@ func TestSQLitePathExtractsFilePathFromSQLAlchemyStyleURL(t *testing.T) {
 	}
 }
 
+func TestDefaultSettingsUseAirportRMiaoSpeedBuildToken(t *testing.T) {
+	settings := DefaultSettings()
+	if len(settings.MiaoSpeed.BuildTokens) != len(AirportRMiaoSpeedBuildTokens) {
+		t.Fatalf("unexpected default build token count: %#v", settings.MiaoSpeed.BuildTokens)
+	}
+	if settings.MiaoSpeed.BuildTokens[0] != "MIAOKO4" || settings.MiaoSpeed.BuildTokens[len(settings.MiaoSpeed.BuildTokens)-1] != "T0kEN" {
+		t.Fatalf("unexpected AirportR MiaoSpeed build token defaults: %#v", settings.MiaoSpeed.BuildTokens)
+	}
+}
+
 func TestBundledConfigFilesLoad(t *testing.T) {
 	root := filepath.Clean(filepath.Join("..", "..", ".."))
 	for _, path := range []string{

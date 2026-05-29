@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-release_latest_url="https://github.com/MiaoMagic/miaospeed/releases/latest"
-download_base="https://github.com/MiaoMagic/miaospeed/releases/download"
+release_latest_url="https://github.com/AirportR/miaospeed/releases/latest"
+download_base="https://github.com/AirportR/miaospeed/releases/download"
 default_output="runtime/bin/miaospeed"
 user_agent="proxy-check-miaospeed-downloader/0.1"
 download_connect_timeout="${DOWNLOAD_CONNECT_TIMEOUT:-10}"
@@ -18,9 +18,9 @@ print_url=false
 
 usage() {
   cat <<'EOF'
-Usage: scripts/download_miaospeed.sh [--os darwin|linux] [--arch arm64|amd64] [--version v4.3.9] [--output runtime/bin/miaospeed] [--print-url]
+Usage: scripts/download_miaospeed.sh [--os darwin|linux] [--arch arm64|amd64] [--version 4.6.8] [--output runtime/bin/miaospeed] [--print-url]
 
-Download an official MiaoSpeed release binary into this project.
+Download an AirportR MiaoSpeed release binary into this project.
 If --version is omitted, the script follows GitHub's latest-release redirect.
 Set GITHUB_PROXY to prefix GitHub download URLs, for example https://proxy.example/.
 Set DOWNLOAD_CONNECT_TIMEOUT and DOWNLOAD_MAX_TIME to override curl timeouts.
@@ -86,8 +86,8 @@ detect_arch() {
 
 tag_from_version() {
   case "$1" in
-    v*) echo "$1" ;;
-    *) echo "v$1" ;;
+    v*) echo "${1#v}" ;;
+    *) echo "$1" ;;
   esac
 }
 
@@ -150,7 +150,7 @@ else
 fi
 
 asset_version="$(asset_version_from_tag "$tag")"
-asset_name="miaospeed_${asset_version}_${goos}_${arch}.tar.gz"
+asset_name="miaospeed-${goos}-${arch}-${asset_version}.tar.gz"
 asset_url="${download_base}/${tag}/${asset_name}"
 effective_asset_url="$(download_url "$asset_url")"
 download_dir="runtime/downloads"

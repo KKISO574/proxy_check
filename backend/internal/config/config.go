@@ -7,6 +7,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var AirportRMiaoSpeedBuildTokens = []string{"MIAOKO4", "580JxAo049R", "GEnERAl", "1X571R930", "T0kEN"}
+
 type Settings struct {
 	App       AppConfig       `yaml:"app"`
 	Mihomo    MihomoConfig    `yaml:"mihomo"`
@@ -110,6 +112,7 @@ func DefaultSettings() Settings {
 			WSURL:                   "ws://127.0.0.1:8766",
 			TokenEnv:                "MIAOSPEED_TOKEN",
 			BuildTokenEnv:           "MIAOSPEED_BUILD_TOKENS",
+			BuildTokens:             append([]string{}, AirportRMiaoSpeedBuildTokens...),
 			Invoker:                 "proxy-check",
 			TimeoutMS:               30000,
 			StartTimeoutMS:          10000,

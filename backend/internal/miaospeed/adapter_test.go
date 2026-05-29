@@ -29,6 +29,9 @@ func TestBuildRequestUsesClashVendorNodesAndMatrices(t *testing.T) {
 			DownloadURL:       "https://example.com/10m.bin",
 			DownloadDuration:  5,
 			DownloadThreading: 2,
+			UploadURL:         "https://example.com/upload",
+			UploadDuration:    3,
+			UploadThreading:   1,
 			TaskTimeout:       30,
 		},
 	})
@@ -47,6 +50,9 @@ func TestBuildRequestUsesClashVendorNodesAndMatrices(t *testing.T) {
 	config := request["Configs"].(map[string]any)
 	if config["DownloadURL"] != "https://example.com/10m.bin" || config["DownloadDuration"] != 5 {
 		t.Fatalf("unexpected configs: %#v", config)
+	}
+	if config["ApiVersion"] != 3 || config["UploadURL"] != "https://example.com/upload" || config["UploadDuration"] != 3 {
+		t.Fatalf("expected AirportR v3 config fields, got %#v", config)
 	}
 }
 
@@ -90,7 +96,7 @@ func TestSignRequestMatchesMiaoSpeedChallengeAlgorithm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign request: %v", err)
 	}
-	const expected = "M7ekEIZ0PLxj8AUaScVti2fMdpQVHMXO9M5VOXTFy0GlQfBaippg9QBuqzBYTwkIZTy-VkSNgcRXhHMtCaoleQ=="
+	const expected = "nBDZqWTdZsoHvih8YY3mgrVcJkS5mmDF7fxvcVFL2d7qXLM-rtfHe4gEkF0WVn0ke7XymkD7V9Vx5_ZdZW2eKQ=="
 	if signature != expected {
 		t.Fatalf("unexpected signature\nwant %s\n got %s", expected, signature)
 	}
@@ -139,7 +145,6 @@ func upstreamStyleSignature(t *testing.T, token string, buildToken string, reque
 	t.Helper()
 	wire := request.ToWire()
 	wire.Challenge = ""
-	wire.Vendor = ""
 	encoded, err := json.Marshal(wire)
 	if err != nil {
 		t.Fatalf("marshal request: %v", err)
@@ -207,7 +212,7 @@ func TestWebSocketClientSignsRequestWhenTokenConfigured(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run websocket client: %v", err)
 	}
-	const expected = "M7ekEIZ0PLxj8AUaScVti2fMdpQVHMXO9M5VOXTFy0GlQfBaippg9QBuqzBYTwkIZTy-VkSNgcRXhHMtCaoleQ=="
+	const expected = "nBDZqWTdZsoHvih8YY3mgrVcJkS5mmDF7fxvcVFL2d7qXLM-rtfHe4gEkF0WVn0ke7XymkD7V9Vx5_ZdZW2eKQ=="
 	if received["Challenge"] != expected {
 		t.Fatalf("unexpected signed challenge: %#v", received["Challenge"])
 	}

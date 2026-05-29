@@ -52,7 +52,14 @@ miaospeed:
   ws_url: ws://127.0.0.1:8766
   token_env: MIAOSPEED_TOKEN
   build_token_env: MIAOSPEED_BUILD_TOKENS
-  build_tokens: []
+  # AirportR/miaospeed 官方预编译二进制的公开 build token。
+  # 自行编译 miaospeed 时改成自己的 BUILDTOKEN.key，或用 MIAOSPEED_BUILD_TOKENS 覆盖。
+  build_tokens:
+    - MIAOKO4
+    - 580JxAo049R
+    - GEnERAl
+    - 1X571R930
+    - T0kEN
   invoker: proxy-check
   timeout_ms: 30000
   start_timeout_ms: 10000

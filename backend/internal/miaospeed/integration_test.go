@@ -185,7 +185,7 @@ func TestMiaoSpeedSidecarIntegration(t *testing.T) {
 func splitIntegrationBuildTokens(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return nil
+		return []string{"MIAOKO4", "580JxAo049R", "GEnERAl", "1X571R930", "T0kEN"}
 	}
 	return strings.Split(raw, "|")
 }

@@ -14,9 +14,9 @@ assert_contains() {
 
 miaospeed_url="$(
   GITHUB_PROXY="https://proxy.example" \
-    "$repo_root/scripts/download_miaospeed.sh" --os linux --arch amd64 --version v4.3.9 --print-url
+    "$repo_root/scripts/download_miaospeed.sh" --os linux --arch amd64 --version 4.6.8 --print-url
 )"
-assert_contains "$miaospeed_url" "https://proxy.example/https://github.com/MiaoMagic/miaospeed/releases/download/v4.3.9/miaospeed_4.3.9_linux_amd64.tar.gz"
+assert_contains "$miaospeed_url" "https://proxy.example/https://github.com/AirportR/miaospeed/releases/download/4.6.8/miaospeed-linux-amd64-4.6.8.tar.gz"
 
 mihomo_urls="$(
   GITHUB_PROXY="https://proxy.example/" \

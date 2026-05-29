@@ -32,9 +32,13 @@ func (n Node) ToWire() map[string]string {
 }
 
 type RequestConfig struct {
+	ApiVersion        int
 	DownloadURL       string
 	DownloadDuration  int
 	DownloadThreading int
+	UploadURL         string
+	UploadDuration    int
+	UploadThreading   int
 	PingAverageOver   int
 	PingAddress       string
 	TaskRetry         int
@@ -61,9 +65,13 @@ func (s Script) ToWire() map[string]any {
 
 func (c RequestConfig) ToWire() map[string]any {
 	config := map[string]any{}
+	config["ApiVersion"] = c.apiVersion()
 	putString(config, "DownloadURL", c.DownloadURL)
 	putInt(config, "DownloadDuration", c.DownloadDuration)
 	putInt(config, "DownloadThreading", c.DownloadThreading)
+	putString(config, "UploadURL", c.UploadURL)
+	putInt(config, "UploadDuration", c.UploadDuration)
+	putInt(config, "UploadThreading", c.UploadThreading)
 	putInt(config, "PingAverageOver", c.PingAverageOver)
 	putString(config, "PingAddress", c.PingAddress)
 	putInt(config, "TaskRetry", c.TaskRetry)
@@ -79,6 +87,13 @@ func (c RequestConfig) ToWire() map[string]any {
 		config["Scripts"] = scripts
 	}
 	return config
+}
+
+func (c RequestConfig) apiVersion() int {
+	if c.ApiVersion > 0 {
+		return c.ApiVersion
+	}
+	return 3
 }
 
 type Request struct {
@@ -277,10 +292,14 @@ type wireBasics struct {
 }
 
 type wireConfig struct {
+	ApiVersion        int
 	STUNURL           string
 	DownloadURL       string
 	DownloadDuration  int
 	DownloadThreading int
+	UploadURL         string
+	UploadDuration    int
+	UploadThreading   int
 	PingAverageOver   int
 	PingAddress       string
 	TaskRetry         int
@@ -343,9 +362,13 @@ func (r Request) ToWire() wireRequest {
 			Matrices: matrices,
 		},
 		Configs: wireConfig{
+			ApiVersion:        r.Config.apiVersion(),
 			DownloadURL:       r.Config.DownloadURL,
 			DownloadDuration:  r.Config.DownloadDuration,
 			DownloadThreading: r.Config.DownloadThreading,
+			UploadURL:         r.Config.UploadURL,
+			UploadDuration:    r.Config.UploadDuration,
+			UploadThreading:   r.Config.UploadThreading,
 			PingAverageOver:   r.Config.PingAverageOver,
 			PingAddress:       r.Config.PingAddress,
 			TaskRetry:         r.Config.TaskRetry,
@@ -362,7 +385,6 @@ func (r Request) ToWire() wireRequest {
 
 func signWireRequest(token string, buildTokens []string, request wireRequest) (string, error) {
 	request.Challenge = ""
-	request.Vendor = ""
 	encoded, err := json.Marshal(request)
 	if err != nil {
 		return "", err
@@ -403,10 +425,14 @@ func wireRequestFromMap(request map[string]any) (wireRequest, error) {
 	}
 	if configs, ok := request["Configs"].(map[string]any); ok {
 		wire.Configs = wireConfig{
+			ApiVersion:        intValue(configs["ApiVersion"]),
 			STUNURL:           stringValue(configs["STUNURL"]),
 			DownloadURL:       stringValue(configs["DownloadURL"]),
 			DownloadDuration:  intValue(configs["DownloadDuration"]),
 			DownloadThreading: intValue(configs["DownloadThreading"]),
+			UploadURL:         stringValue(configs["UploadURL"]),
+			UploadDuration:    intValue(configs["UploadDuration"]),
+			UploadThreading:   intValue(configs["UploadThreading"]),
 			PingAverageOver:   intValue(configs["PingAverageOver"]),
 			PingAddress:       stringValue(configs["PingAddress"]),
 			TaskRetry:         intValue(configs["TaskRetry"]),

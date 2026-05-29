@@ -89,22 +89,26 @@ proxy_check/
 - 前端构建产物统一到 `web/static/`。
 - 后续所有后端功能只在 `backend/` 中实现，入口统一为 `backend/cmd/proxy-check`。
 
-### P1 MiaoSpeed 生产化
+### P0 AirportR/MiaoSpeed 生产化（当前最高优先级）
 
-- 已补官方 release 二进制下载脚本，默认写入 `runtime/bin/miaospeed`。
+- MiaoSpeed 上游切换为 [AirportR/miaospeed](https://github.com/AirportR/miaospeed)，优先适配
+  4.6.8 release；旧的 MiaoMagic 4.3.9-Core 仅作为历史验证记录。
+- 已补 AirportR release 二进制下载脚本，默认写入 `runtime/bin/miaospeed`。
 - Mihomo/MiaoSpeed 下载脚本支持 `--print-url`、`GITHUB_PROXY`、`DOWNLOAD_CONNECT_TIMEOUT`、
   `DOWNLOAD_MAX_TIME`、`DOWNLOAD_RETRY` 和 `DOWNLOAD_RETRY_DELAY`，用于网络受限环境预检、
   走代理下载、重试临时 SSL/连接错误或缩短失败等待。
 - Docker 配置已按 Go 托管 sidecar 模式使用 `ws://127.0.0.1:8766`，避免默认指向不存在的外部服务。
 - Go 托管 sidecar 现在要求 `miaospeed.enabled` 与 `miaospeed.manage_sidecar` 同时开启，避免全局关闭时仍启动进程。
-- Go 托管 sidecar 默认执行 `server -token ... -bind ...`；已用正式 4.3.9-Core
-  release 验证该参数形态可启动，且该版本不读取 `TOKEN`/`BIND` 环境变量；
+- Go 托管 sidecar 默认执行 `server -token ... -bind ...`；AirportR 4.6.8 沿用该参数形态，
+  且不按 `TOKEN`/`BIND` 环境变量自动启动；
   自定义 `miaospeed.args` 时按用户参数启动。
+- 请求适配以 AirportR 4.6.x 为准：`Configs.ApiVersion` 默认 3，保留 `Vendor=Clash`
+  参与 Challenge 签名，并支持后续上传测速字段。
 - Prober factory 现在只有在 `miaospeed.enabled: true` 时才注册 `miaospeed_*` 维度。
 - 已支持从文件加载 DNS/解锁脚本，推荐放在 `runtime/miaospeed/scripts/`。
-- 测试机已能下载并启动正式 4.3.9-Core release；该 release 请求签名仍需要匹配的
-  `MIAOSPEED_BUILD_TOKENS`，无匹配 token 时会返回 `cannot verify the request`。
-- 使用正式发布或正式构建的 MiaoSpeed 二进制验证生产 DNS leak 脚本。
+- AirportR 预编译二进制的公开 build token 已作为默认配置写入；自行编译时用
+  `MIAOSPEED_BUILD_TOKENS` 或 `miaospeed.build_tokens` 覆盖。
+- 使用 AirportR 4.6.8 正式发布二进制验证生产 DNS leak 脚本。
 - 验证 Netflix、Disney、OpenAI、YouTube 等解锁脚本输出。
 - 将 MiaoSpeed 结果稳定写入 `probe_results` 与 `node_meta`。
 
@@ -178,6 +182,5 @@ MiaoSpeed opt-in 集成测试：
 PROXY_CHECK_MIAOSPEED_INTEGRATION=1 \
 MIAOSPEED_BIN=/path/to/miaospeed \
 MIAOSPEED_TOKEN=your_token \
-MIAOSPEED_BUILD_TOKENS='build-a|build-b' \
 go test ./backend/internal/miaospeed -run TestMiaoSpeedSidecarIntegration -count=1 -v
 ```

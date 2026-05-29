@@ -1,6 +1,6 @@
 app:
-  database_url: sqlite+aiosqlite:////app/data/proxy_check.sqlite3
-  static_dir: /app/app/static
+  database_url: sqlite:////app/data/proxy_check.sqlite3
+  static_dir: /app/web/static
 
 mihomo:
   bin: /app/runtime/bin/mihomo
@@ -21,6 +21,18 @@ probe:
   import_timeout_ms: 30000
   retention_days: 30
   delay_url: https://cp.cloudflare.com/generate_204
+  dimensions:
+    - delay
+    - tcping
+    - tls_handshake
+    - http_rtt
+    - jitter
+    - packet_loss
+    - exit_geo
+    # MiaoSpeed 高级探测默认关闭；启用前需配置 miaospeed.enabled/ws_url。
+    # - miaospeed_dns_leak
+    # - miaospeed_unlock
+    # - miaospeed_bandwidth
   tcp_targets:
     - host: 1.1.1.1
       port: 443
@@ -30,3 +42,27 @@ probe:
       port: 443
     - host: 8.8.8.8
       port: 80
+
+miaospeed:
+  enabled: false
+  manage_sidecar: false
+  bin: /app/runtime/bin/miaospeed
+  args: []
+  work_dir: /app/runtime/miaospeed
+  ws_url: ws://127.0.0.1:8766
+  token_env: MIAOSPEED_TOKEN
+  build_token_env: MIAOSPEED_BUILD_TOKENS
+  build_tokens: []
+  invoker: proxy-check
+  timeout_ms: 30000
+  start_timeout_ms: 10000
+  download_url: ""
+  download_duration_seconds: 5
+  download_threading: 2
+  task_timeout_seconds: 30
+  max_bandwidth_concurrency: 1
+  script_timeout_ms: 10000
+  dns_leak_script: ""
+  dns_leak_script_path: ""
+  unlock_scripts: {}
+  unlock_script_paths: {}

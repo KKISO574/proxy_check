@@ -9,17 +9,53 @@ export interface NodeItem {
   port: number | null;
   listener_port: number | null;
   status: NodeStatus;
-  latest_delay_ms: number | null;
-  latest_tcping_ms: number | null;
-  latest_tcping_target: string | null;
+  metrics: Record<string, MetricSummary>;
+  meta: NodeMeta | null;
+  score: number | null;
+  score_confidence: number;
+  score_breakdown: Record<string, ScoreComponent>;
   last_checked_at: string | null;
+}
+
+export interface ScoreComponent {
+  weight: number;
+  score: number;
+  contribution: number;
+  value: number | null;
+  status: string;
+}
+
+export interface NodeMeta {
+  exit_ip: string | null;
+  asn: string | null;
+  country: string | null;
+  region: string | null;
+  isp: string | null;
+  netflix_unlock: string | null;
+  disney_unlock: string | null;
+  openai_unlock: string | null;
+  youtube_unlock: string | null;
+  dns_leak: string | null;
+}
+
+export interface MetricSummary {
+  metric: string;
+  target: string;
+  latency_ms: number | null;
+  value: number | null;
+  data: string | null;
+  success: boolean;
+  error: string | null;
+  created_at: string;
 }
 
 export interface ProbePoint {
   created_at: string;
-  metric: "delay" | "tcping";
+  metric: string;
   target: string;
   latency_ms: number | null;
+  value: number | null;
+  data: string | null;
   success: boolean;
   error: string | null;
 }
@@ -42,6 +78,7 @@ export interface MonitorTask {
   source_url: string;
   enabled: boolean;
   interval_seconds: number;
+  advanced_probes_enabled: boolean;
   status: NodeStatus;
   node_count: number;
   last_refresh_at: string | null;
@@ -60,6 +97,7 @@ export interface TaskPayload {
   source_url: string;
   interval_seconds: number;
   enabled?: boolean;
+  advanced_probes_enabled?: boolean;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -125,7 +163,7 @@ export function fetchNode(id: number): Promise<NodeDetail> {
 
 export function fetchHistory(
   id: number,
-  metric: "delay" | "tcping",
+  metric: string,
   range: "1h" | "6h" | "24h" | "7d" | "30d"
 ): Promise<ProbePoint[]> {
   return request<ProbePoint[]>(`/api/nodes/${id}/history?metric=${metric}&range=${range}`);

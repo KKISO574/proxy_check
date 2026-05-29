@@ -1,613 +1,179 @@
-# AGENT.md
+# Proxy Check 后续开发计划
 
-# Project
+`README.md` 记录当前可运行版本；本文件记录工程架构、已完成范围和后续路线。
+当前主线后端已经切到 Go，Python/FastAPI 后端与 pytest 体系已下线。
 
-Proxy Node Quality Detection Platform
-
-A distributed proxy node quality monitoring and scoring platform based on Mihomo (Clash Meta).
-
-The system continuously tests all proxy nodes concurrently and records:
-
-- latency
-- RTT
-- jitter
-- packet loss
-- TCP connect time
-- TLS handshake time
-- HTTP response time
-- outbound IP
-- ASN
-- GEO location
-- OpenAI availability
-- Netflix unlock
-- YouTube region
-- bandwidth
-- historical stability
-
-The platform exposes:
-
-- REST API
-- WebSocket live updates
-- Prometheus metrics
-- Grafana dashboards
-
-The platform MUST support:
-
-- high concurrency
-- async workers
-- low resource usage
-- distributed probe nodes
-
----
-
-# Core Requirements
-
-## Clash Core
-
-Use:
-
-- Mihomo (Clash Meta)
-
-Enable:
-
-```yaml
-external-controller: 0.0.0.0:9090
-secret: your_secret
-```
-
-The system MUST use Clash External Controller API.
-
-DO NOT switch global selector repeatedly for testing.
-
-Each node MUST be tested independently through:
-
-```http
-GET /proxies/{name}/delay
-```
-
----
-
-# Testing Requirements
-
-## Every node must support:
-
-### 1. Delay test
-
-Using Clash delay API:
-
-```http
-/proxies/{name}/delay
-```
-
-Target:
+## 当前架构
 
 ```text
-https://cp.cloudflare.com/generate_204
+proxy_check/
+├── backend/                     # Go 后端主线
+│   ├── cmd/proxy-check/         # 服务入口
+│   └── internal/
+│       ├── api/                 # REST API、Prometheus、静态资源托管
+│       ├── clash/               # Clash/Mihomo YAML 解析
+│       ├── config/              # YAML 配置加载
+│       ├── miaospeed/           # MiaoSpeed WebSocket/sidecar 适配
+│       ├── probe/               # Mihomo 管理、探测器、评分
+│       ├── scheduler/           # 任务调度
+│       └── storage/             # SQLite schema 与 repository
+├── frontend/                    # React + Vite + TypeScript 前端
+├── web/static/                  # 前端构建产物，Git 忽略，由 Go 托管
+├── configs/                     # 示例配置与 Docker 配置
+├── docs/grafana/                # Grafana 示例面板
+├── docs/migration-go-vs-node.md # 后端语言迁移记录
+├── scripts/download_mihomo.sh   # Mihomo 下载辅助脚本，不依赖 Python
+├── scripts/download_miaospeed.sh # MiaoSpeed 下载辅助脚本，不依赖 Python
+├── Dockerfile
+└── docker-compose.yml
 ```
 
-Timeout configurable.
+## 已完成
 
----
+### v1 基础平台
 
-### 2. TCP connect latency
+- 多配置 URL 导入：每个 Clash/Mihomo YAML URL 对应一个监测任务。
+- 任务模型：任务拥有独立节点、检测周期、启停状态和缓存配置文件。
+- Mihomo 托管：Go 后端生成运行时配置，为每个节点分配独立 `mixed` listener。
+- 基础探测：`delay` 和 `tcping`，不依赖 ICMP ping。
+- SQLite 持久化：`monitor_tasks`、`nodes`、`probe_results`、`node_meta`。
+- API：`/api/tasks`、`/api/nodes`、`/api/stats`、`/api/tests/run`、`/metrics`。
+- React 可视化：任务列表、节点表格、状态、历史折线图。
+- Docker 部署：Node 22 构建前端，Go 构建后端，Debian slim runtime。
 
-Test:
+### v2 指标扩展
 
-- 443
-- 80
+- Go prober registry 和统一指标模型。
+- `tls_handshake`、`http_rtt`、`jitter`、`packet_loss`。
+- `exit_geo`：出口 IP、ASN、国家、地区、ISP。
+- 前端按指标动态生成图表 tab，并支持国家/ASN 过滤。
+- 节点详情页已展示 DNS 泄漏、服务解锁和 MiaoSpeed 带宽结果。
 
-Targets:
+### v3 可观测性
 
-- 1.1.1.1
-- 8.8.8.8
+- 节点评分：`score`、`score_confidence`、`score_breakdown`。
+- Prometheus `/metrics`。
+- Grafana 示例：`docs/grafana/proxy-check-v3.json`。
+- JSON 行日志，适合 Docker 和日志平台采集。
 
----
+### v4/v5 Go 主线与 MiaoSpeed
 
-### 3. TLS handshake time
+- Go 后端已覆盖 API、调度、存储、核心探测器、Mihomo 生命周期和静态页面托管。
+- 配置导入具备 SSRF 防护，拒绝 localhost、内网、link-local、multicast 等地址。
+- Mihomo runtime config/listener 变化会触发重建，子进程退出会被观察并清理。
+- MiaoSpeed 适配已具备：
+  - Challenge 签名与 WebSocket client
+  - frame 归一化和按脚本 key 聚合结果
+  - Go-managed sidecar 生命周期
+  - `miaospeed_bandwidth`
+  - 基于 `TEST_SCRIPT` 的 `miaospeed_dns_leak`
+  - 基于 `TEST_SCRIPT` 的 `miaospeed_unlock`
+  - 任务级高级探测开关，默认关闭
+- 最小真实 sidecar 联调已经覆盖 signed ping/script、`Vendor=Clash` HTTP 节点 payload 和 `SPEED_*` 带宽矩阵。
 
-Measure TLS establish duration.
+## 当前约束
 
----
+- 首版仍只解析 Clash/Mihomo YAML 顶层静态 `proxies`。
+- 暂不做 Base64 订阅解析、`proxy-providers` 展开、PostgreSQL。
+- MiaoSpeed 是 AGPLv3；分发修改版二进制、嵌入源码或深度派生前必须做许可证合规检查。
+- DNS 泄漏和解锁检测必须走 MiaoSpeed 上游真实 `TEST_SCRIPT`，不要发明不存在的矩阵名。
+- 高流量探测必须显式开启，不允许默认随 60 秒普通轮询运行。
 
-### 4. HTTP RTT
+## 后续路线
 
-Measure full HTTP request latency.
+### P0 架构清理（已完成）
 
----
+- 保持 Go 为唯一后端主线。
+- Python/FastAPI 后端、pytest、requirements、pyproject 已移除。
+- Mihomo/MiaoSpeed 下载辅助脚本已改为 Bash，仓库不再保留 Python 源码。
+- 前端构建产物统一到 `web/static/`。
+- 后续所有后端功能只在 `backend/` 中实现，入口统一为 `backend/cmd/proxy-check`。
 
-### 5. Download speed test
+### P1 MiaoSpeed 生产化
 
-Small file benchmark:
+- 已补官方 release 二进制下载脚本，默认写入 `runtime/bin/miaospeed`。
+- Mihomo/MiaoSpeed 下载脚本支持 `--print-url`、`GITHUB_PROXY`、`DOWNLOAD_CONNECT_TIMEOUT`、
+  `DOWNLOAD_MAX_TIME`、`DOWNLOAD_RETRY` 和 `DOWNLOAD_RETRY_DELAY`，用于网络受限环境预检、
+  走代理下载、重试临时 SSL/连接错误或缩短失败等待。
+- Docker 配置已按 Go 托管 sidecar 模式使用 `ws://127.0.0.1:8766`，避免默认指向不存在的外部服务。
+- Go 托管 sidecar 现在要求 `miaospeed.enabled` 与 `miaospeed.manage_sidecar` 同时开启，避免全局关闭时仍启动进程。
+- Go 托管 sidecar 默认执行 `server` 并通过 `TOKEN`/`BIND` 环境变量传参，兼容正式 release 的普通 v4 参数形态；自定义 `miaospeed.args` 时按用户参数启动。
+- Prober factory 现在只有在 `miaospeed.enabled: true` 时才注册 `miaospeed_*` 维度。
+- 已支持从文件加载 DNS/解锁脚本，推荐放在 `runtime/miaospeed/scripts/`。
+- 使用正式发布或正式构建的 MiaoSpeed 二进制验证生产 DNS leak 脚本。
+- 验证 Netflix、Disney、OpenAI、YouTube 等解锁脚本输出。
+- 将 MiaoSpeed 结果稳定写入 `probe_results` 与 `node_meta`。
 
-- 1MB
-- 10MB
+### P2 前端面板重设计
 
-Must support cancellation and timeout.
+视觉方向参考 `iplark.com` 和 `net.coffee`，但保持监控台效率：
 
----
+- 已补基础高级探测结果面板，能展示 DNS 泄漏、解锁状态和平均/峰值带宽。
+- 下一步将首屏重排为更完整的 IP、ASN、GEO、状态、评分、速度、DNS 泄漏、解锁徽章组合。
+- 保留左侧任务列表，右侧改为更强的网络质量详情面板。
+- 增加服务解锁矩阵和跑量结果卡片。
+- 增加浅色/深色主题。
+- 避免营销式首页，默认进入可操作监控台。
 
-### 6. Packet loss
+### P3 评分模型升级
 
-Continuous ping-like testing.
+- 已加入 DNS 泄漏惩罚。
+- 已加入 MiaoSpeed 带宽分项，`score_confidence` 封顶到 1.0。
+- 已加入解锁能力作为可选轻量分项，同时继续作为页面 badge 展示。
+- 后续可把带宽从固定阈值升级为任务内 percentile 分。
+- 区分快速指标和重型指标的置信度权重。
 
-Do NOT rely only on ICMP.
+### P4 运维增强
 
-Prefer TCP/HTTP-based loss detection.
+- WebSocket 实时状态推送。
+- Telegram / 企业微信 webhook 告警。
+- systemd 部署示例。
+- 远端 Docker 部署回归脚本。
 
----
+### P5 分布式探针
 
-### 7. Jitter
+- 新增 `probe_agents` 表。
+- 设计 agent-controller 协议，优先 HTTP/gRPC。
+- 多地域探测、任务分片和结果聚合。
 
-Compute jitter based on historical RTT variance.
+## API 约定
 
----
+当前 API 继续保持：
 
-### 8. Outbound IP
+- `GET /api/tasks`
+- `POST /api/tasks`
+- `PATCH /api/tasks/{id}`
+- `DELETE /api/tasks/{id}`
+- `POST /api/tasks/{id}/refresh`
+- `POST /api/tasks/{id}/run`
+- `GET /api/nodes`
+- `GET /api/nodes/{id}`
+- `GET /api/nodes/{id}/history`
+- `GET /api/stats`
+- `POST /api/tests/run`
+- `GET /metrics`
 
-Fetch:
+后续新增能力优先扩展现有响应结构中的 `metrics`、`meta` 和 `score_breakdown`，避免为每个新指标新增一套列表/详情 API。
 
-```text
-https://api.ip.sb/ip
+## 验证命令
+
+```bash
+export PATH="/usr/local/go/bin:$PATH"
+go test ./...
+
+export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+npm --prefix frontend run build
+npm --prefix frontend audit --audit-level=moderate
+
+git diff --check
 ```
 
-and:
+MiaoSpeed opt-in 集成测试：
 
-```text
-https://ipapi.co/json
+```bash
+PROXY_CHECK_MIAOSPEED_INTEGRATION=1 \
+MIAOSPEED_BIN=/path/to/miaospeed \
+MIAOSPEED_TOKEN=your_token \
+MIAOSPEED_BUILD_TOKENS='build-a|build-b' \
+go test ./backend/internal/miaospeed -run TestMiaoSpeedSidecarIntegration -count=1 -v
 ```
-
-Record:
-
-- IP
-- ASN
-- Country
-- Region
-- ISP
-
----
-
-### 9. Streaming unlock
-
-Support:
-
-- Netflix
-- Disney+
-- YouTube Premium
-- TikTok
-- OpenAI
-
----
-
-### 10. DNS leak test
-
-Detect whether outbound DNS leaks.
-
----
-
-# Architecture
-
-## Components
-
-### 1. Mihomo Core
-
-Responsible only for proxy transport.
-
----
-
-### 2. Scheduler
-
-Responsible for:
-
-- periodic testing
-- distributed scheduling
-- worker assignment
-- retry
-- timeout
-
----
-
-### 3. Probe Workers
-
-Async workers performing actual tests.
-
-Must support:
-
-- asyncio
-- concurrency limits
-- cancellation
-- timeout
-
----
-
-### 4. Storage Layer
-
-Use:
-
-- SQLite initially
-- abstract storage interface
-- later support PostgreSQL
-
-Tables:
-
-- nodes
-- test_results
-- latency_history
-- bandwidth_history
-- unlock_status
-- probe_agents
-
----
-
-### 5. Metrics
-
-Expose Prometheus metrics.
-
-Examples:
-
-- node_latency_ms
-- node_packet_loss
-- node_jitter
-- node_availability
-- node_bandwidth_mbps
-
----
-
-### 6. Dashboard
-
-Use Grafana.
-
-Provide dashboard JSON examples.
-
----
-
-# Performance Requirements
-
-Support:
-
-- 1000+ nodes
-- 100 concurrent tests
-- low CPU usage
-- low memory usage
-
-Must use:
-
-- asyncio
-- aiohttp
-
-Avoid:
-
-- threading
-- blocking requests
-
----
-
-# API Design
-
-## REST API
-
-### Multi-Config Tasks
-
-The platform groups Clash/Mihomo configurations into **monitor tasks**. Each
-task owns:
-
-- one source URL (`http`/`https` only)
-- one cached YAML file under `mihomo.imported_config_dir`
-- its own `interval_seconds` for scheduled detection
-- its own listener port range (assigned out of `mihomo.listener_port_start`
-  ~ `listener_port_max`, picked via gap-finding so tasks never collide)
-- isolated nodes and history (same node name across tasks is NOT merged)
-
-Re-downloading the source URL only happens on task creation, URL edit, or
-manual `POST /api/tasks/{id}/refresh`. Probe rounds reuse the cached YAML.
-
-### GET /api/tasks
-
-List all monitor tasks, including `node_count` and last-run status.
-
-### POST /api/tasks
-
-Create a task by importing a Clash YAML URL. Body:
-
-```json
-{
-  "name": "main",
-  "source_url": "https://example.com/clash.yaml",
-  "interval_seconds": 60,
-  "enabled": true
-}
-```
-
-### PATCH /api/tasks/{id}
-
-Edit `name`, `source_url`, `enabled`, or `interval_seconds`. Changing
-`source_url` triggers a refresh.
-
-### DELETE /api/tasks/{id}
-
-Delete the task, its nodes, and all probe history.
-
-### POST /api/tasks/{id}/refresh
-
-Re-download the source URL and resync the node list (deduplicated by name
-within the task).
-
-### POST /api/tasks/{id}/run
-
-Trigger an immediate detection round for one task.
-
-### GET /nodes
-
-List all nodes. Pass `?task_id={id}` to scope the list to one monitor task.
-
----
-
-### GET /nodes/{id}
-
-Node details.
-
----
-
-### GET /nodes/{id}/history
-
-Historical metrics. Use `?metric=delay|tcping&range=1h|6h|24h|7d|30d`.
-
----
-
-### GET /stats
-
-Global statistics. Pass `?task_id={id}` for per-task aggregates.
-
----
-
-### POST /test/{id}
-
-Trigger immediate test.
-
----
-
-### WebSocket
-
-Provide real-time updates.
-
----
-
-# Node Scoring
-
-Every node must have dynamic score.
-
-Suggested formula:
-
-```text
-score =
-latency_weight +
-packet_loss_weight +
-jitter_weight +
-availability_weight +
-bandwidth_weight +
-unlock_weight
-```
-
-Score range:
-
-```text
-0 ~ 100
-```
-
----
-
-# Suggested Stack
-
-## Backend
-
-Python 3.12+
-
-Framework:
-
-- FastAPI
-
-Libraries:
-
-- aiohttp
-- asyncio
-- sqlalchemy
-- pydantic
-- uvicorn
-
----
-
-## Frontend
-
-Optional.
-
-If implemented:
-
-- React
-- Next.js
-- Tailwind
-
----
-
-# Code Requirements
-
-## Style
-
-- typed Python
-- modular design
-- service-oriented
-- repository pattern
-
----
-
-## Logging
-
-Use structured logging.
-
-Recommended:
-
-```python
-structlog
-```
-
----
-
-## Config
-
-Use:
-
-```yaml
-config.yaml
-```
-
-Support hot reload.
-
----
-
-## Secrets
-
-Do NOT hardcode:
-
-- API secrets
-- Clash secret
-- tokens
-
-Use env vars.
-
----
-
-# Directory Structure
-
-```text
-project/
-├── app/
-│   ├── api/
-│   ├── core/
-│   ├── scheduler/
-│   ├── workers/
-│   ├── probes/
-│   ├── storage/
-│   ├── services/
-│   ├── models/
-│   └── utils/
-├── configs/
-├── dashboards/
-├── scripts/
-├── tests/
-├── docker/
-└── AGENT.md
-```
-
----
-
-# Probe Strategy
-
-Testing must be:
-
-- concurrent
-- isolated
-- timeout-controlled
-
-Never block entire testing loop due to single node failure.
-
-Use semaphore.
-
-Example:
-
-```python
-asyncio.Semaphore(50)
-```
-
----
-
-# Failure Handling
-
-Support:
-
-- retry
-- timeout
-- dead node quarantine
-- cooldown
-
----
-
-# Future Features
-
-Support future extensions:
-
-- distributed probes
-- global multi-region probes
-- Telegram notifications
-- WeCom notifications
-- OpenAI availability tracking
-- route tracing
-- ASN blacklist
-- risk ASN detection
-- historical trend analysis
-- anomaly detection
-
----
-
-# Deployment
-
-Support:
-
-- Docker
-- docker-compose
-- systemd
-
-Provide:
-
-- example compose files
-- production configs
-
----
-
-# Important Rules
-
-## DO NOT:
-
-- switch Clash global mode repeatedly
-- restart Clash frequently
-- use blocking network requests
-- rely only on ICMP ping
-- exceed the configured listener port range; per-task node count is
-  bounded by `mihomo.listener_port_max - listener_port_start` shared
-  across all tasks (default ~45000 slots). Allocations are picked via
-  gap-finding rather than `start + task_id * 1000 + index`, so node
-  count is the only practical limit, not task ID.
-
----
-
-## MUST:
-
-- use Clash delay API
-- support async concurrency
-- support metrics
-- support historical persistence
-- support extensibility
-
----
-
-# Testing Targets
-
-Default targets:
-
-```text
-https://cp.cloudflare.com/generate_204
-https://www.gstatic.com/generate_204
-https://captive.apple.com
-```
-
----
-
-# Priority
-
-Implementation priority:
-
-1. Clash API integration
-2. Concurrent delay testing
-3. Storage
-4. REST API
-5. Metrics
-6. Dashboard
-7. Advanced scoring
-8. Distributed architecture

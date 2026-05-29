@@ -58,12 +58,15 @@ flowchart LR
 - **历史持久化**：SQLite，默认保留 30 天
 - **节点评分**：API 与页面展示 0-100 分、置信度和分项贡献；评分只读计算，不落库
 - **可观测性**：Prometheus 文本指标 `/metrics`，Grafana 示例见 `docs/grafana/proxy-check-v3.json`
-- **可视化**：节点列表、状态徽章、评分排序、按 metric 分 tab 的折线图、节点画像卡片、按国家/ASN 过滤
+- **可视化**：Net.Coffee 风格顶栏与暗/亮主题，`/` 节点监控、`/ip/` IP 画像、`/dns/` DNS 泄露检测三个页面
+  - 节点监控：状态徽章、评分排序、按 metric 分 tab 的折线图、节点画像卡片、按国家/ASN 过滤
+  - IP 画像：出口 IP、评分、ASN/GEO/ISP、网络质量、DNS 和解锁信号
+  - DNS 检测：快速任务检测、MiaoSpeed 深度检测入口、节点级 DNS 结果表
 - **部署**：Docker 多阶段构建 + docker-compose
 
 当前版本只识别 Clash/Mihomo YAML 里的静态 `proxies`。
-Base64 订阅、`proxy-providers` 展开、流媒体解锁、DNS 泄漏、带宽测速等
-功能在路线图中，详见 [AGENT.md](AGENT.md)。
+Base64 订阅和 `proxy-providers` 展开仍在路线图中。MiaoSpeed 高级探测已作为可选能力接入，
+默认关闭，开启前需要配置 sidecar、脚本和下载测试地址，详见 [AGENT.md](AGENT.md)。
 
 ## 快速开始
 
@@ -76,6 +79,8 @@ PROXY_CHECK_CONFIG=configs/config.yaml go run ./backend/cmd/proxy-check
 启动后访问：
 
 - 页面：`http://127.0.0.1:8000/`
+- IP 画像：`http://127.0.0.1:8000/ip/`
+- DNS 检测：`http://127.0.0.1:8000/dns/`
 - API：`http://127.0.0.1:8000/api`
 
 Go 后端当前不内置 Swagger UI；API 以 README 中的接口表为准。
@@ -185,7 +190,7 @@ docker compose down
 
 ## 监测任务
 
-页面左侧是任务列表，点"导入配置 URL"创建任务。任务级别的字段：
+页面顶部是任务条，点"导入"创建任务。任务级别的字段：
 
 - `任务名称`：用于区分不同配置源
 - `Clash 配置 URL`：必须 `http://` 或 `https://`，响应必须是 Clash/Mihomo YAML
@@ -212,6 +217,9 @@ docker compose down
 | DELETE | `/api/tasks/{id}` | 删除任务及其节点历史 |
 | POST | `/api/tasks/{id}/refresh` | 重新下载 URL 并同步节点 |
 | POST | `/api/tasks/{id}/run` | 立即检测单个任务 |
+| POST | `/api/tasks/{id}/miaospeed/run` | 立即运行该任务的高级 MiaoSpeed 探测 |
+| GET | `/api/tasks/{id}/miaospeed/results` | 获取该任务的 MiaoSpeed 结果矩阵 |
+| GET | `/api/miaospeed/catalog` | 获取内置服务检测目录 |
 | GET | `/api/nodes` | 节点列表，可选 `?task_id=` |
 | GET | `/api/nodes/{id}` | 节点详情，含最近错误 |
 | GET | `/api/nodes/{id}/history` | 历史折线，参数 `metric` + `range=1h\|6h\|24h\|7d\|30d` |

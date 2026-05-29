@@ -7,12 +7,15 @@ import {
   CirclePause,
   Download,
   Gauge,
+  Globe2,
+  Moon,
   Pencil,
   Plus,
   RefreshCw,
   Search,
   Server,
   ShieldCheck,
+  Sun,
   Trash2,
   UnlockKeyhole,
   XCircle
@@ -39,6 +42,7 @@ import {
   NodeItem,
   ProbePoint,
   refreshTask,
+  runMiaoSpeedTask,
   runTask,
   Stats,
   updateTask
@@ -48,11 +52,18 @@ import "./styles.css";
 type StatusFilter = "all" | "available" | "down" | "unknown";
 type RangeFilter = "1h" | "6h" | "24h" | "7d" | "30d";
 type SortKey = "name" | "status" | "delay" | "score";
+type PageKey = "monitor" | "ip" | "dns";
 type ChartMetric = {
   key: string;
   label: string;
   color: string;
 };
+
+const NAV_ITEMS: { key: PageKey; path: string; label: string; short: string }[] = [
+  { key: "monitor", path: "/", label: "节点监控", short: "监控" },
+  { key: "ip", path: "/ip/", label: "IP 画像", short: "IP" },
+  { key: "dns", path: "/dns/", label: "DNS 泄露检测", short: "DNS" }
+];
 
 const DEFAULT_CHART_METRICS: ChartMetric[] = [
   { key: "delay", label: "真延迟", color: "#16a34a" },
@@ -131,6 +142,17 @@ function formatTime(value: string | null): string {
   }).format(new Date(value));
 }
 
+function pageFromPath(pathname: string): PageKey {
+  if (pathname.startsWith("/ip")) return "ip";
+  if (pathname.startsWith("/dns")) return "dns";
+  return "monitor";
+}
+
+function activeNode(selected: NodeItem | null, detail: NodeDetail | null): NodeItem | NodeDetail | null {
+  if (selected && detail?.id === selected.id) return detail;
+  return selected;
+}
+
 function statusLabel(status: string): string {
   if (status === "available") return "可用";
   if (status === "down") return "异常";
@@ -145,33 +167,6 @@ function StatusBadge({ status }: { status: string }) {
       <Icon size={14} />
       {statusLabel(status)}
     </span>
-  );
-}
-
-function IconButton({
-  label,
-  children,
-  onClick,
-  disabled,
-  tone
-}: {
-  label: string;
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  tone?: "danger";
-}) {
-  return (
-    <button
-      className={`icon-button ${tone ?? ""}`}
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -194,6 +189,540 @@ function MetricCard({
         <strong>{value}</strong>
       </div>
     </section>
+  );
+}
+
+function NetCoffeeShell({
+  page,
+  onNavigate,
+  children
+}: {
+  page: PageKey;
+  onNavigate: (page: PageKey) => void;
+  children: React.ReactNode;
+}) {
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    const stored = window.localStorage.getItem("theme");
+    return stored === "light" || stored === "dark" ? stored : "dark";
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  return (
+    <div className="nc-page">
+      <div className="nc-container">
+        <nav className="nc-nav">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.key}
+              className={page === item.key ? "active" : ""}
+              type="button"
+              onClick={() => onNavigate(item.key)}
+            >
+              <span className="full">{item.label}</span>
+              <span className="short">{item.short}</span>
+            </button>
+          ))}
+          <button
+            className="theme-toggle"
+            type="button"
+            title={theme === "dark" ? "切换亮色模式" : "切换暗黑模式"}
+            aria-label={theme === "dark" ? "切换亮色模式" : "切换暗黑模式"}
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
+        </nav>
+        {children}
+        <footer className="nc-footer">© 2026 Proxy Check · 节点质量检测 · IP 画像 · DNS 泄露检测</footer>
+      </div>
+    </div>
+  );
+}
+
+function TaskSelector({
+  tasks,
+  selectedTask,
+  selectedTaskId,
+  busyTaskId,
+  onSelect,
+  onCreate,
+  onEdit,
+  onRefresh,
+  onRun,
+  onToggle,
+  onDelete
+}: {
+  tasks: MonitorTask[];
+  selectedTask: MonitorTask | null;
+  selectedTaskId: number | null;
+  busyTaskId: number | null;
+  onSelect: (id: number) => void;
+  onCreate: () => void;
+  onEdit: () => void;
+  onRefresh: (id: number) => void;
+  onRun: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <section className="nc-taskbar">
+      <div>
+        <span className="nc-muted-label">Monitor Task</span>
+        <h2>{selectedTask?.name ?? "未选择任务"}</h2>
+        <p>{selectedTask?.source_url ?? "导入 Clash/Mihomo YAML URL 后开始同步节点。"}</p>
+      </div>
+      <div className="nc-task-actions">
+        <select value={selectedTaskId ?? ""} onChange={(event) => onSelect(Number(event.target.value))} disabled={tasks.length === 0}>
+          {tasks.length === 0 ? (
+            <option value="">暂无任务</option>
+          ) : (
+            tasks.map((task) => (
+              <option key={task.id} value={task.id}>
+                {task.name} · {task.node_count}
+              </option>
+            ))
+          )}
+        </select>
+        <button type="button" onClick={onCreate}>
+          <Plus size={15} />
+          导入
+        </button>
+        <button type="button" onClick={onEdit} disabled={!selectedTask}>
+          <Pencil size={15} />
+          编辑
+        </button>
+        <button type="button" onClick={() => selectedTask && onRefresh(selectedTask.id)} disabled={!selectedTask || busyTaskId === selectedTask?.id}>
+          <RefreshCw size={15} className={busyTaskId === selectedTask?.id ? "spin" : ""} />
+          刷新
+        </button>
+        <button type="button" onClick={onToggle} disabled={!selectedTask}>
+          <CirclePause size={15} />
+          {selectedTask?.enabled ? "暂停" : "启用"}
+        </button>
+        <button className="danger" type="button" onClick={onDelete} disabled={!selectedTask || busyTaskId === selectedTask?.id}>
+          <Trash2 size={15} />
+          删除
+        </button>
+        <button className="strong" type="button" onClick={onRun} disabled={!selectedTask || busyTaskId === selectedTask?.id}>
+          <RefreshCw size={15} className={busyTaskId === selectedTask?.id ? "spin" : ""} />
+          检测
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function InfoCard({
+  title,
+  children,
+  action
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <section className="nc-card">
+      <div className="nc-card-title">
+        <h3>{title}</h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function KeyValueRows({ rows }: { rows: [string, React.ReactNode][] }) {
+  return (
+    <div className="kv-list">
+      {rows.map(([label, value]) => (
+        <div className="kv-row" key={label}>
+          <span>{label}</span>
+          <strong>{value ?? "-"}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function pillClass(value: string | null | undefined): string {
+  if (!value) return "pill muted-pill";
+  if (isPositiveStatus(value)) return "pill ok-pill";
+  const lower = value.toLowerCase();
+  if (lower.includes("risk") || lower.includes("leak") || lower.includes("泄露") || lower.includes("失败")) return "pill danger-pill";
+  return "pill warn-pill";
+}
+
+function scoreClass(score: number | null | undefined): string {
+  if (score === null || score === undefined) return "score-mid";
+  if (score >= 80) return "score-high";
+  if (score >= 50) return "score-mid";
+  return "score-low";
+}
+
+function MonitorPage({
+  selectedTask,
+  stats,
+  selected,
+  detail,
+  filtered,
+  selectedId,
+  loading,
+  histories,
+  range,
+  search,
+  statusFilter,
+  countryFilter,
+  asnFilter,
+  sortKey,
+  countries,
+  asns,
+  onSelectNode,
+  onRangeChange,
+  setSearch,
+  setStatusFilter,
+  setCountryFilter,
+  setAsnFilter,
+  setSortKey
+}: {
+  selectedTask: MonitorTask | null;
+  stats: Stats | null;
+  selected: NodeItem | null;
+  detail: NodeDetail | null;
+  filtered: NodeItem[];
+  selectedId: number | null;
+  loading: boolean;
+  histories: Record<string, ProbePoint[]>;
+  range: RangeFilter;
+  search: string;
+  statusFilter: StatusFilter;
+  countryFilter: string;
+  asnFilter: string;
+  sortKey: SortKey;
+  countries: string[];
+  asns: string[];
+  onSelectNode: (node: NodeItem) => void;
+  onRangeChange: (range: RangeFilter) => void;
+  setSearch: (value: string) => void;
+  setStatusFilter: (value: StatusFilter) => void;
+  setCountryFilter: (value: string) => void;
+  setAsnFilter: (value: string) => void;
+  setSortKey: (value: SortKey) => void;
+}) {
+  return (
+    <>
+      <header className="nc-header">
+        <h1>节点质量监控</h1>
+        <p>导入 Clash/Mihomo 配置，按节点持续追踪真延迟、tcping、出口画像、评分和高级探测结果。</p>
+      </header>
+
+      <div className="nc-metrics">
+        <MetricCard icon={<Server size={20} />} label="节点总数" value={`${stats?.total_nodes ?? 0}`} />
+        <MetricCard icon={<CheckCircle2 size={20} />} label="可用节点" value={`${stats?.available_nodes ?? 0}`} tone="ok" />
+        <MetricCard icon={<XCircle size={20} />} label="异常节点" value={`${stats?.down_nodes ?? 0}`} tone="danger" />
+        <MetricCard icon={<Gauge size={20} />} label="平均延迟" value={formatLatency(stats?.average_delay_ms ?? null)} />
+      </div>
+
+      <SignalBoard selected={selected} detail={detail} stats={stats} />
+
+      <section className="nc-grid-main">
+        <section className="list-panel nc-card no-padding">
+          <div className="toolbar">
+            <div className="search-box">
+              <Search size={16} />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索节点、入口、出口 IP、ASN" />
+            </div>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+              <option value="all">全部状态</option>
+              <option value="available">可用</option>
+              <option value="down">异常</option>
+              <option value="unknown">未知</option>
+            </select>
+            <select value={countryFilter} onChange={(event) => setCountryFilter(event.target.value)}>
+              <option value="all">全部国家</option>
+              {countries.map((country) => (
+                <option key={country} value={country}>
+                  {country}
+                </option>
+              ))}
+            </select>
+            <select value={asnFilter} onChange={(event) => setAsnFilter(event.target.value)}>
+              <option value="all">全部 ASN</option>
+              {asns.map((asn) => (
+                <option key={asn} value={asn}>
+                  {asn}
+                </option>
+              ))}
+            </select>
+            <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
+              <option value="delay">按延迟</option>
+              <option value="score">按评分</option>
+              <option value="status">按状态</option>
+              <option value="name">按名称</option>
+            </select>
+          </div>
+          {loading ? (
+            <div className="loading">
+              <Activity size={20} className="spin" />
+              加载中
+            </div>
+          ) : (
+            <NodeTable nodes={filtered} selectedId={selectedId} onSelect={onSelectNode} hasTask={Boolean(selectedTask)} />
+          )}
+        </section>
+
+        <DetailPane selected={selected} detail={detail} histories={histories} range={range} onRangeChange={onRangeChange} />
+      </section>
+    </>
+  );
+}
+
+function IpProfilePage({
+  nodes,
+  selected,
+  detail,
+  search,
+  setSearch,
+  onSelectNode
+}: {
+  nodes: NodeItem[];
+  selected: NodeItem | null;
+  detail: NodeDetail | null;
+  search: string;
+  setSearch: (value: string) => void;
+  onSelectNode: (node: NodeItem) => void;
+}) {
+  const node = activeNode(selected, detail);
+  const meta = node?.meta;
+  const metrics = node?.metrics ?? {};
+  const searchTerm = search.trim().toLowerCase();
+  const candidates = nodes.filter((item) => {
+    if (!searchTerm) return true;
+    return (
+      item.name.toLowerCase().includes(searchTerm) ||
+      (item.meta?.exit_ip ?? "").toLowerCase().includes(searchTerm) ||
+      (item.meta?.asn ?? "").toLowerCase().includes(searchTerm) ||
+      (item.meta?.country ?? "").toLowerCase().includes(searchTerm)
+    );
+  });
+  const latencyTargets: [string, React.ReactNode][] = [
+    ["真延迟", formatLatency(metrics.delay?.latency_ms ?? null)],
+    ["HTTP RTT", formatLatency(metrics.http_rtt?.latency_ms ?? metrics.http_rtt?.value ?? null)],
+    ["TLS 握手", formatLatency(metrics.tls_handshake?.latency_ms ?? metrics.tls_handshake?.value ?? null)],
+    ["丢包率", metrics.packet_loss?.value === undefined || metrics.packet_loss?.value === null ? "-" : `${metrics.packet_loss.value}%`]
+  ];
+
+  return (
+    <>
+      <header className="nc-header">
+        <h1>IP 评分查询</h1>
+        <p>把每个代理节点当成独立出口 IP 查看：评分、地理、ASN、运营商、风险和网络质量集中展示。</p>
+      </header>
+
+      <section className="ip-head clone-card">
+        <div className="ip-main">
+          <strong>{meta?.exit_ip ?? node?.server ?? "未选择节点"}</strong>
+          <span>
+            <Globe2 size={15} />
+            {meta?.country ?? "Unknown"} {meta?.region ? `· ${meta.region}` : ""}
+          </span>
+        </div>
+        <div className={`score-gauge ${scoreClass(node?.score)}`}>
+          <span>IP 评分</span>
+          <strong>{formatScore(node?.score ?? null)}</strong>
+        </div>
+        <div className="ip-search">
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索节点 / IP / ASN" />
+        </div>
+      </section>
+
+      <div className="ip-grid">
+        <InfoCard title="使用场景 / 类型">
+          <KeyValueRows
+            rows={[
+              ["节点名称", node?.name ?? "-"],
+              ["代理类型", node?.type ?? "unknown"],
+              ["节点状态", <StatusBadge status={node?.status ?? "unknown"} />],
+              ["出口 DNS", <span className={pillClass(meta?.dns_leak)}>{formatStatusValue(meta?.dns_leak)}</span>]
+            ]}
+          />
+        </InfoCard>
+        <InfoCard title="ASN / 运营商">
+          <KeyValueRows
+            rows={[
+              ["ASN", meta?.asn ?? "-"],
+              ["ISP", meta?.isp ?? "-"],
+              ["国家 / 地区", `${meta?.country ?? "-"}${meta?.region ? ` / ${meta.region}` : ""}`],
+              ["入口", `${node?.server ?? "-"}${node?.port ? `:${node.port}` : ""}`]
+            ]}
+          />
+        </InfoCard>
+        <InfoCard title="技术指标">
+          <KeyValueRows rows={latencyTargets} />
+        </InfoCard>
+        <InfoCard title="IP 情报（威胁指标）">
+          <KeyValueRows
+            rows={[
+              ["Netflix", <span className={pillClass(meta?.netflix_unlock)}>{formatStatusValue(meta?.netflix_unlock)}</span>],
+              ["Disney+", <span className={pillClass(meta?.disney_unlock)}>{formatStatusValue(meta?.disney_unlock)}</span>],
+              ["OpenAI", <span className={pillClass(meta?.openai_unlock)}>{formatStatusValue(meta?.openai_unlock)}</span>],
+              ["YouTube", <span className={pillClass(meta?.youtube_unlock)}>{formatStatusValue(meta?.youtube_unlock)}</span>]
+            ]}
+          />
+        </InfoCard>
+      </div>
+
+      <InfoCard title="全球主要地区延迟测试">
+        <div className="ping-strip">
+          {latencyTargets.map(([label, value]) => (
+            <div key={label}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
+          ))}
+        </div>
+      </InfoCard>
+
+      <InfoCard title="节点 IP 列表">
+        {candidates.length === 0 ? (
+          <EmptyState hasTask={nodes.length > 0} />
+        ) : (
+          <div className="ip-node-grid">
+            {candidates.map((item) => (
+              <button className={item.id === node?.id ? "active" : ""} key={item.id} type="button" onClick={() => onSelectNode(item)}>
+                <strong>{item.meta?.exit_ip ?? item.server ?? "-"}</strong>
+                <span>{item.name}</span>
+                <em>{item.meta?.asn ?? "-"} · {item.meta?.country ?? "-"}</em>
+              </button>
+            ))}
+          </div>
+        )}
+      </InfoCard>
+    </>
+  );
+}
+
+function DnsLeakPage({
+  nodes,
+  selectedTask,
+  selected,
+  detail,
+  busyTaskId,
+  onRunQuick,
+  onRunDeep,
+  onSelectNode
+}: {
+  nodes: NodeItem[];
+  selectedTask: MonitorTask | null;
+  selected: NodeItem | null;
+  detail: NodeDetail | null;
+  busyTaskId: number | null;
+  onRunQuick: () => void;
+  onRunDeep: () => void;
+  onSelectNode: (node: NodeItem) => void;
+}) {
+  const node = activeNode(selected, detail);
+  const dnsLeak = node?.meta?.dns_leak;
+  const leaked = Boolean(dnsLeak && /leak|泄露|danger|risk|failed|失败/i.test(dnsLeak));
+  const clean = Boolean(dnsLeak && !leaked);
+  const verdictClass = leaked ? "verdict-danger" : clean ? "verdict-safe" : "verdict-warn";
+  const verdictText = leaked ? "检测到 DNS 泄露风险" : clean ? "DNS 当前看起来干净" : "等待 DNS 检测结果";
+
+  return (
+    <>
+      <header className="nc-header">
+        <h1>DNS 泄露检测</h1>
+        <p>单独查看节点 DNS 泄露状态，手动触发快速任务或 MiaoSpeed 深度脚本测试。</p>
+      </header>
+
+      <div className="dns-feature-grid">
+        {[
+          ["🔒", "节点级 DNS", "每个代理出口独立记录"],
+          ["⚡", "快速测试", "复用低流量任务检测"],
+          ["🎯", "深度脚本", "MiaoSpeed TEST_SCRIPT"],
+          ["🛡", "结果留存", "写入节点画像和历史"]
+        ].map(([icon, title, desc]) => (
+          <section className="dns-feature" key={title}>
+            <strong>{icon}</strong>
+            <span>{title}</span>
+            <small>{desc}</small>
+          </section>
+        ))}
+      </div>
+
+      <div className="dns-actions">
+        <button type="button" onClick={onRunQuick} disabled={!selectedTask || busyTaskId === selectedTask?.id}>
+          <RefreshCw size={16} className={busyTaskId === selectedTask?.id ? "spin" : ""} />
+          快速测试
+        </button>
+        <button type="button" onClick={onRunDeep} disabled={!selectedTask || busyTaskId === selectedTask?.id}>
+          <ShieldCheck size={16} className={busyTaskId === selectedTask?.id ? "spin" : ""} />
+          深度测试
+        </button>
+      </div>
+
+      <div className={`dns-verdict ${verdictClass}`}>
+        <strong>{verdictText}</strong>
+        <span>{node?.name ?? "选择节点后查看 DNS 检测结果"}</span>
+      </div>
+
+      <InfoCard title="DNS 检测结果">
+        {nodes.length === 0 ? (
+          <EmptyState hasTask={Boolean(selectedTask)} />
+        ) : (
+          <div className="dns-table-wrap">
+            <table className="dns-table">
+              <thead>
+                <tr>
+                  <th>节点</th>
+                  <th>DNS 状态</th>
+                  <th>出口 IP</th>
+                  <th>国家 / ASN</th>
+                  <th>最近检测</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nodes.map((item) => (
+                  <tr key={item.id} className={item.id === node?.id ? "selected-row" : ""} onClick={() => onSelectNode(item)}>
+                    <td>
+                      <div className="node-name">{item.name}</div>
+                      <span className="muted">{item.type ?? "unknown"}</span>
+                    </td>
+                    <td>
+                      <span className={pillClass(item.meta?.dns_leak)}>{formatStatusValue(item.meta?.dns_leak)}</span>
+                    </td>
+                    <td className="mono">{item.meta?.exit_ip ?? "-"}</td>
+                    <td>
+                      <div>{item.meta?.country ?? "-"}</div>
+                      <span className="muted">{item.meta?.asn ?? "-"}</span>
+                    </td>
+                    <td>{formatTime(item.last_checked_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </InfoCard>
+
+      <section className="article-grid">
+        {[
+          ["DNS 泄露是什么？", "代理流量走了节点，但 DNS 查询仍从本地网络发出时，真实网络位置可能被暴露。"],
+          ["发现泄露后怎么修？", "优先启用代理侧 DNS、关闭系统直连 DNS，并用深度测试复查 resolver 出口。"],
+          ["为什么代理后仍会泄露？", "浏览器、系统、透明代理和分流规则都可能让 DNS 查询绕过代理通道。"],
+          ["DoH / DoT 有什么区别？", "它们能加密 DNS 查询，但是否经过代理出口仍取决于本地路由和代理规则。"]
+        ].map(([title, body]) => (
+          <details className="article-fold" key={title}>
+            <summary>{title}</summary>
+            <p>{body}</p>
+          </details>
+        ))}
+      </section>
+    </>
   );
 }
 
@@ -295,72 +824,6 @@ function SignalBoard({
         </div>
       </div>
     </section>
-  );
-}
-
-function TaskSidebar({
-  tasks,
-  selectedTaskId,
-  onSelect,
-  onCreate,
-  onRefresh,
-  busyTaskId
-}: {
-  tasks: MonitorTask[];
-  selectedTaskId: number | null;
-  onSelect: (id: number) => void;
-  onCreate: () => void;
-  onRefresh: (id: number) => void;
-  busyTaskId: number | null;
-}) {
-  return (
-    <aside className="task-sidebar">
-      <div className="brand">
-        <div className="brand-mark">
-          <Activity size={20} />
-        </div>
-        <div>
-          <h1>Proxy Check</h1>
-          <p>节点质量检测平台</p>
-        </div>
-      </div>
-      <button className="add-task" type="button" onClick={onCreate}>
-        <Plus size={16} />
-        导入配置 URL
-      </button>
-      <div className="task-list">
-        {tasks.length === 0 ? (
-          <div className="task-empty">暂无监测任务</div>
-        ) : (
-          tasks.map((task) => (
-            <button
-              className={`task-item ${selectedTaskId === task.id ? "active" : ""}`}
-              key={task.id}
-              type="button"
-              onClick={() => onSelect(task.id)}
-            >
-              <span className={`task-dot dot-${task.enabled ? task.status : "paused"}`} />
-              <span className="task-copy">
-                <strong>{task.name}</strong>
-                <small>
-                  {task.enabled ? statusLabel(task.status) : "已暂停"} · {task.node_count} 节点
-                </small>
-              </span>
-              <span
-                className="task-refresh"
-                title="刷新配置"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onRefresh(task.id);
-                }}
-              >
-                <RefreshCw size={14} className={busyTaskId === task.id ? "spin" : ""} />
-              </span>
-            </button>
-          ))
-        )}
-      </div>
-    </aside>
   );
 }
 
@@ -791,10 +1254,18 @@ function App() {
   const [editingTask, setEditingTask] = useState<MonitorTask | null>(null);
   const [savingTask, setSavingTask] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<number | null>(null);
+  const [page, setPage] = useState<PageKey>(() => pageFromPath(window.location.pathname));
   const selectedTaskIdRef = useRef<number | null>(selectedTaskId);
   const selectedIdRef = useRef<number | null>(selectedId);
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+  function navigate(pageKey: PageKey) {
+    const target = NAV_ITEMS.find((item) => item.key === pageKey);
+    if (!target) return;
+    window.history.pushState({}, "", target.path);
+    setPage(pageKey);
+  }
 
   function selectTaskId(taskId: number | null) {
     selectedTaskIdRef.current = taskId;
@@ -862,6 +1333,12 @@ function App() {
     void loadAll();
     const timer = window.setInterval(() => void loadAll(), 15000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => setPage(pageFromPath(window.location.pathname));
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   useEffect(() => {
@@ -967,6 +1444,19 @@ function App() {
     }
   }
 
+  async function handleRunMiaoSpeedTask() {
+    if (!selectedTaskId) return;
+    setBusyTaskId(selectedTaskId);
+    try {
+      await runMiaoSpeedTask(selectedTaskId);
+      await loadAll();
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
   async function handleRefreshTask(taskId: number) {
     setBusyTaskId(taskId);
     try {
@@ -1000,8 +1490,12 @@ function App() {
     setBusyTaskId(selectedTask.id);
     try {
       await deleteTask(selectedTask.id);
-      await loadTasks(null);
-      await loadOverview(null);
+      const nextTaskId = await loadTasks(null);
+      if (nextTaskId === null) {
+        clearOverview();
+      } else {
+        await loadOverview(nextTaskId);
+      }
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
     } finally {
@@ -1009,129 +1503,90 @@ function App() {
     }
   }
 
+  const cancelForm = () => {
+    setShowForm(false);
+    setEditingTask(null);
+  };
+
   return (
-    <div className="app-layout">
-      <TaskSidebar
+    <NetCoffeeShell page={page} onNavigate={navigate}>
+      <TaskSelector
         tasks={tasks}
+        selectedTask={selectedTask}
         selectedTaskId={selectedTaskId}
+        busyTaskId={busyTaskId}
         onSelect={selectTaskId}
         onCreate={() => {
           setEditingTask(null);
           setShowForm(true);
         }}
+        onEdit={() => selectedTask && (setEditingTask(selectedTask), setShowForm(true))}
         onRefresh={handleRefreshTask}
-        busyTaskId={busyTaskId}
+        onRun={handleRunTask}
+        onToggle={handleToggleTask}
+        onDelete={handleDeleteTask}
       />
 
-      <main className="workspace">
-        <header className="workspace-header">
-          <div>
-            <span className="eyebrow">Monitor Task</span>
-            <h2>{selectedTask?.name ?? "未选择任务"}</h2>
-            <p>{selectedTask?.source_url ?? "导入 Clash/Mihomo YAML URL 后开始同步节点。"}</p>
-          </div>
-          <div className="header-actions">
-            <IconButton label="编辑任务" onClick={() => selectedTask && (setEditingTask(selectedTask), setShowForm(true))} disabled={!selectedTask}>
-              <Pencil size={16} />
-            </IconButton>
-            <IconButton label={selectedTask?.enabled ? "暂停任务" : "启用任务"} onClick={handleToggleTask} disabled={!selectedTask}>
-              <CirclePause size={16} />
-            </IconButton>
-            <IconButton label="删除任务" onClick={handleDeleteTask} disabled={!selectedTask} tone="danger">
-              <Trash2 size={16} />
-            </IconButton>
-            <button className="primary-button" onClick={handleRunTask} disabled={!selectedTask || busyTaskId === selectedTask.id}>
-              <RefreshCw size={16} className={busyTaskId === selectedTask?.id ? "spin" : ""} />
-              检测任务
-            </button>
-          </div>
-        </header>
-
-        {showForm && (
-          <TaskForm
-            task={editingTask}
-            onSubmit={handleTaskSubmit}
-            onCancel={() => {
-              setShowForm(false);
-              setEditingTask(null);
-            }}
-            saving={savingTask}
-          />
-        )}
-
-        {error && (
-          <div className="error-banner">
-            <AlertTriangle size={16} />
-            {error}
-          </div>
-        )}
-
-        <SignalBoard selected={selected} detail={detail} stats={stats} />
-
-        <div className="metric-grid">
-          <MetricCard icon={<Server size={20} />} label="节点总数" value={`${stats?.total_nodes ?? 0}`} />
-          <MetricCard icon={<CheckCircle2 size={20} />} label="可用节点" value={`${stats?.available_nodes ?? 0}`} tone="ok" />
-          <MetricCard icon={<XCircle size={20} />} label="异常节点" value={`${stats?.down_nodes ?? 0}`} tone="danger" />
-          <MetricCard icon={<Gauge size={20} />} label="平均延迟" value={formatLatency(stats?.average_delay_ms ?? null)} />
+      {showForm && <TaskForm task={editingTask} onSubmit={handleTaskSubmit} onCancel={cancelForm} saving={savingTask} />}
+      {error && (
+        <div className="error-banner">
+          <AlertTriangle size={16} />
+          {error}
         </div>
+      )}
 
-        <section className="content-grid">
-          <section className="list-panel">
-            <div className="toolbar">
-              <div className="search-box">
-                <Search size={16} />
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索节点或入口地址" />
-              </div>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
-                <option value="all">全部状态</option>
-                <option value="available">可用</option>
-                <option value="down">异常</option>
-                <option value="unknown">未知</option>
-              </select>
-              <select value={countryFilter} onChange={(event) => setCountryFilter(event.target.value)}>
-                <option value="all">全部国家</option>
-                {countries.map((country) => (
-                  <option key={country} value={country}>
-                    {country}
-                  </option>
-                ))}
-              </select>
-              <select value={asnFilter} onChange={(event) => setAsnFilter(event.target.value)}>
-                <option value="all">全部 ASN</option>
-                {asns.map((asn) => (
-                  <option key={asn} value={asn}>
-                    {asn}
-                  </option>
-                ))}
-              </select>
-              <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
-                <option value="delay">按延迟</option>
-                <option value="score">按评分</option>
-                <option value="status">按状态</option>
-                <option value="name">按名称</option>
-              </select>
-            </div>
+      {page === "monitor" && (
+        <MonitorPage
+          selectedTask={selectedTask}
+          stats={stats}
+          selected={selected}
+          detail={detail}
+          filtered={filtered}
+          selectedId={selectedId}
+          loading={loading}
+          histories={histories}
+          range={range}
+          search={search}
+          statusFilter={statusFilter}
+          countryFilter={countryFilter}
+          asnFilter={asnFilter}
+          sortKey={sortKey}
+          countries={countries}
+          asns={asns}
+          onSelectNode={(node) => selectNodeId(node.id)}
+          onRangeChange={setRange}
+          setSearch={setSearch}
+          setStatusFilter={setStatusFilter}
+          setCountryFilter={setCountryFilter}
+          setAsnFilter={setAsnFilter}
+          setSortKey={setSortKey}
+        />
+      )}
 
-            {loading ? (
-              <div className="loading">
-                <Activity size={20} className="spin" />
-                加载中
-              </div>
-            ) : (
-              <NodeTable nodes={filtered} selectedId={selectedId} onSelect={(node) => selectNodeId(node.id)} hasTask={Boolean(selectedTask)} />
-            )}
-          </section>
+      {page === "ip" && (
+        <IpProfilePage
+          nodes={nodes}
+          selected={selected}
+          detail={detail}
+          search={search}
+          setSearch={setSearch}
+          onSelectNode={(node) => selectNodeId(node.id)}
+        />
+      )}
 
-          <DetailPane
-            selected={selected}
-            detail={detail}
-            histories={histories}
-            range={range}
-            onRangeChange={setRange}
-          />
-        </section>
-      </main>
-    </div>
+      {page === "dns" && (
+        <DnsLeakPage
+          nodes={nodes}
+          selectedTask={selectedTask}
+          selected={selected}
+          detail={detail}
+          busyTaskId={busyTaskId}
+          onRunQuick={handleRunTask}
+          onRunDeep={handleRunMiaoSpeedTask}
+          onSelectNode={(node) => selectNodeId(node.id)}
+        />
+      )}
+    </NetCoffeeShell>
   );
 }
 

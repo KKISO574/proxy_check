@@ -153,6 +153,10 @@ export function runTask(id: number): Promise<{ nodes: number; results: number; e
   return request(`/api/tasks/${id}/run`, { method: "POST" });
 }
 
+export function runMiaoSpeedTask(id: number): Promise<{ nodes: number; results: number; errors: number }> {
+  return request(`/api/tasks/${id}/miaospeed/run`, { method: "POST" });
+}
+
 export function fetchNodes(taskId?: number | null): Promise<NodeItem[]> {
   return request<NodeItem[]>(withTask("/api/nodes", taskId));
 }

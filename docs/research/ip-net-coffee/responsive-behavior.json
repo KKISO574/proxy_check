@@ -1,0 +1,1163 @@
+{
+  "home": {
+    "desktop": {
+      "firstTableCells": [
+        "Website",
+        "",
+        "IP",
+        "Geolocation"
+      ],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "flex",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 2080.2265625,
+          "padding": "24px 20px",
+          "selector": ".container",
+          "width": 1000,
+          "x": 220,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "14.4px",
+          "gap": "20px",
+          "gridTemplateColumns": "none",
+          "height": 27.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 960,
+          "x": 240,
+          "y": 24
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "28px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 44.796875,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 960,
+          "x": 240,
+          "y": 71.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 23.03125,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 878.9609375,
+          "x": 240,
+          "y": 124.390625
+        },
+        {
+          "display": "table",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 1413.5546875,
+          "padding": "0px",
+          "selector": ".main-table",
+          "width": 960,
+          "x": 240,
+          "y": 642.671875
+        }
+      ],
+      "scrollHeight": 2151,
+      "viewport": {
+        "height": 1200,
+        "width": 1440
+      }
+    },
+    "tablet": {
+      "firstTableCells": [
+        "Website",
+        "",
+        "IP",
+        "Geolocation"
+      ],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "flex",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 2067.0078125,
+          "padding": "16px 14px",
+          "selector": ".container",
+          "width": 768,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "14.4px",
+          "gap": "20px",
+          "gridTemplateColumns": "none",
+          "height": 69.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 740,
+          "x": 14,
+          "y": 16
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "28px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 44.796875,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 740,
+          "x": 14,
+          "y": 105.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 23.03125,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 658.9609375,
+          "x": 14,
+          "y": 158.390625
+        },
+        {
+          "display": "table",
+          "flexWrap": "nowrap",
+          "fontSize": "13.12px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 1222.3515625,
+          "padding": "0px",
+          "selector": ".main-table",
+          "width": 740,
+          "x": 14,
+          "y": 828.65625
+        }
+      ],
+      "scrollHeight": 2138,
+      "viewport": {
+        "height": 1100,
+        "width": 768
+      }
+    },
+    "mobile": {
+      "firstTableCells": [
+        "Website",
+        "",
+        "IP",
+        "Geolocation"
+      ],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "none",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 2004.796875,
+          "padding": "14px 12px",
+          "selector": ".container",
+          "width": 390,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "14.4px",
+          "gap": "12px",
+          "gridTemplateColumns": "none",
+          "height": 27.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 366,
+          "x": 12,
+          "y": 14
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "22.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 35.8359375,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 366,
+          "x": 12,
+          "y": 61.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "13.12px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 20.984375,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 366,
+          "x": 12,
+          "y": 105.4296875
+        },
+        {
+          "display": "table",
+          "flexWrap": "nowrap",
+          "fontSize": "12.48px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 1135.7578125,
+          "padding": "0px",
+          "selector": ".main-table",
+          "width": 366,
+          "x": 12,
+          "y": 855.0390625
+        }
+      ],
+      "scrollHeight": 2076,
+      "viewport": {
+        "height": 1000,
+        "width": 390
+      }
+    }
+  },
+  "ip": {
+    "desktop": {
+      "firstTableCells": [],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "flex",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 1942.3984375,
+          "padding": "24px 20px",
+          "selector": ".container",
+          "width": 1000,
+          "x": 220,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "14.4px",
+          "gap": "20px",
+          "gridTemplateColumns": "none",
+          "height": 27.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 960,
+          "x": 240,
+          "y": 24
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "28px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 44.796875,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 960,
+          "x": 240,
+          "y": 71.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 23.03125,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 960,
+          "x": 240,
+          "y": 124.390625
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "16px",
+          "gap": "12px",
+          "gridTemplateColumns": "none",
+          "height": 64.5625,
+          "padding": "14px 18px",
+          "selector": ".ip-head",
+          "width": 960,
+          "x": 240,
+          "y": 171.421875
+        },
+        {
+          "display": "flex",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "6px",
+          "gridTemplateColumns": "none",
+          "height": 32,
+          "padding": "0px",
+          "selector": ".search-bar",
+          "width": 240.1640625,
+          "x": 940.8359375,
+          "y": 187.703125
+        },
+        {
+          "display": "grid",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "14px",
+          "gridTemplateColumns": "473px 473px",
+          "height": 323.34375,
+          "padding": "0px",
+          "selector": ".grid",
+          "width": 960,
+          "x": 240,
+          "y": 255.984375
+        }
+      ],
+      "scrollHeight": 1942,
+      "viewport": {
+        "height": 1200,
+        "width": 1440
+      }
+    },
+    "tablet": {
+      "firstTableCells": [],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "flex",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 2317.03125,
+          "padding": "24px 20px",
+          "selector": ".container",
+          "width": 768,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "14.4px",
+          "gap": "20px",
+          "gridTemplateColumns": "none",
+          "height": 69.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 728,
+          "x": 20,
+          "y": 24
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "28px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 44.796875,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 728,
+          "x": 20,
+          "y": 113.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 23.03125,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 728,
+          "x": 20,
+          "y": 166.390625
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "16px",
+          "gap": "12px",
+          "gridTemplateColumns": "none",
+          "height": 64.5625,
+          "padding": "14px 18px",
+          "selector": ".ip-head",
+          "width": 728,
+          "x": 20,
+          "y": 213.421875
+        },
+        {
+          "display": "flex",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "6px",
+          "gridTemplateColumns": "none",
+          "height": 32,
+          "padding": "0px",
+          "selector": ".search-bar",
+          "width": 240.1640625,
+          "x": 488.8359375,
+          "y": 229.703125
+        },
+        {
+          "display": "grid",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "14px",
+          "gridTemplateColumns": "357px 357px",
+          "height": 323.34375,
+          "padding": "0px",
+          "selector": ".grid",
+          "width": 728,
+          "x": 20,
+          "y": 297.984375
+        }
+      ],
+      "scrollHeight": 2317,
+      "viewport": {
+        "height": 1100,
+        "width": 768
+      }
+    },
+    "mobile": {
+      "firstTableCells": [],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "none",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 3412.921875,
+          "padding": "14px 12px",
+          "selector": ".container",
+          "width": 390,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "14.4px",
+          "gap": "12px",
+          "gridTemplateColumns": "none",
+          "height": 27.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 366,
+          "x": 12,
+          "y": 14
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "22.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 35.8359375,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 366,
+          "x": 12,
+          "y": 61.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "13.12px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 41.96875,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 366,
+          "x": 12,
+          "y": 105.4296875
+        },
+        {
+          "display": "flex",
+          "flexWrap": "wrap",
+          "fontSize": "16px",
+          "gap": "8px",
+          "gridTemplateColumns": "none",
+          "height": 111.2890625,
+          "padding": "10px 12px",
+          "selector": ".ip-head",
+          "width": 366,
+          "x": 12,
+          "y": 171.3984375
+        },
+        {
+          "display": "flex",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "4px",
+          "gridTemplateColumns": "none",
+          "height": 28.5,
+          "padding": "0px",
+          "selector": ".search-bar",
+          "width": 245.609375,
+          "x": 119.390625,
+          "y": 243.1875
+        },
+        {
+          "display": "grid",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "14px",
+          "gridTemplateColumns": "366px",
+          "height": 595.6015625,
+          "padding": "0px",
+          "selector": ".grid",
+          "width": 366,
+          "x": 12,
+          "y": 302.6875
+        }
+      ],
+      "scrollHeight": 3413,
+      "viewport": {
+        "height": 1000,
+        "width": 390
+      }
+    }
+  },
+  "dns": {
+    "desktop": {
+      "firstTableCells": [
+        "#",
+        "DNS 解析器 IP",
+        "归属地",
+        "服务商",
+        "状态",
+        "协议",
+        "加密",
+        "隐蔽性",
+        "被封锁风险",
+        "服务商",
+        "普通 DNS",
+        "DoT",
+        "DoH"
+      ],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "flex",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 712.8046875,
+          "padding": "24px 20px",
+          "selector": ".container",
+          "width": 1000,
+          "x": 220,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "20px",
+          "gridTemplateColumns": "none",
+          "height": 27.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 960,
+          "x": 240,
+          "y": 24
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "28px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 44.796875,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 960,
+          "x": 240,
+          "y": 71.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 23.03125,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 960,
+          "x": 240,
+          "y": 124.390625
+        },
+        {
+          "display": "none",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 0,
+          "padding": "0px",
+          "selector": ".dns-table",
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 46.5,
+          "padding": "0px",
+          "selector": ".test-area",
+          "width": 960,
+          "x": 240,
+          "y": 302.625
+        }
+      ],
+      "scrollHeight": 1200,
+      "viewport": {
+        "height": 1200,
+        "width": 1440
+      }
+    },
+    "tablet": {
+      "firstTableCells": [
+        "#",
+        "DNS 解析器 IP",
+        "归属地",
+        "服务商",
+        "状态",
+        "协议",
+        "加密",
+        "隐蔽性",
+        "被封锁风险",
+        "服务商",
+        "普通 DNS",
+        "DoT",
+        "DoH"
+      ],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "flex",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 737.125,
+          "padding": "24px 20px",
+          "selector": ".container",
+          "width": 768,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "20px",
+          "gridTemplateColumns": "none",
+          "height": 27.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 728,
+          "x": 20,
+          "y": 24
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "28px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 44.796875,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 728,
+          "x": 20,
+          "y": 71.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 23.03125,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 728,
+          "x": 20,
+          "y": 124.390625
+        },
+        {
+          "display": "none",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 0,
+          "padding": "0px",
+          "selector": ".dns-table",
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 46.5,
+          "padding": "0px",
+          "selector": ".test-area",
+          "width": 728,
+          "x": 20,
+          "y": 302.625
+        }
+      ],
+      "scrollHeight": 1100,
+      "viewport": {
+        "height": 1100,
+        "width": 768
+      }
+    },
+    "mobile": {
+      "firstTableCells": [
+        "#",
+        "DNS 解析器 IP",
+        "归属地",
+        "服务商",
+        "状态",
+        "协议",
+        "加密",
+        "隐蔽性",
+        "被封锁风险",
+        "服务商",
+        "普通 DNS",
+        "DoT",
+        "DoH"
+      ],
+      "navText": [
+        {
+          "display": "block",
+          "text": "IP查询查询"
+        },
+        {
+          "display": "block",
+          "text": "Claude AI IP 检测Claude AIClaude"
+        },
+        {
+          "display": "block",
+          "text": "IP评分评分"
+        },
+        {
+          "display": "block",
+          "text": "全球 PingPing"
+        },
+        {
+          "display": "block",
+          "text": "DNS泄露检测DNS"
+        },
+        {
+          "display": "block",
+          "text": "WebRTC检测UDP"
+        },
+        {
+          "display": "block",
+          "text": "服务状态查询状态"
+        },
+        {
+          "display": "none",
+          "text": "IP卡片"
+        }
+      ],
+      "rects": [
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 976.9453125,
+          "padding": "14px 12px",
+          "selector": ".container",
+          "width": 390,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "flex",
+          "flexWrap": "nowrap",
+          "fontSize": "14.4px",
+          "gap": "12px",
+          "gridTemplateColumns": "none",
+          "height": 27.59375,
+          "padding": "0px",
+          "selector": ".nav",
+          "width": 366,
+          "x": 12,
+          "y": 14
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "22.4px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 35.8359375,
+          "padding": "0px",
+          "selector": "h1",
+          "width": 366,
+          "x": 12,
+          "y": 61.59375
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "13.12px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 41.96875,
+          "padding": "0px",
+          "selector": ".desc",
+          "width": 366,
+          "x": 12,
+          "y": 105.4296875
+        },
+        {
+          "display": "none",
+          "flexWrap": "nowrap",
+          "fontSize": "12.48px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 0,
+          "padding": "0px",
+          "selector": ".dns-table",
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "display": "block",
+          "flexWrap": "nowrap",
+          "fontSize": "16px",
+          "gap": "normal",
+          "gridTemplateColumns": "none",
+          "height": 40.5,
+          "padding": "0px",
+          "selector": ".test-area",
+          "width": 366,
+          "x": 12,
+          "y": 425.8046875
+        }
+      ],
+      "scrollHeight": 1048,
+      "viewport": {
+        "height": 1000,
+        "width": 390
+      }
+    }
+  }
+}

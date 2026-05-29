@@ -21,7 +21,6 @@ proxy_check/
 ├── web/static/                  # 前端构建产物，Git 忽略，由 Go 托管
 ├── configs/                     # 示例配置与 Docker 配置
 ├── docs/grafana/                # Grafana 示例面板
-├── docs/migration-go-vs-node.md # 后端语言迁移记录
 ├── scripts/download_mihomo.sh   # Mihomo 下载辅助脚本，不依赖 Python
 ├── scripts/download_miaospeed.sh # MiaoSpeed 下载辅助脚本，不依赖 Python
 ├── Dockerfile
@@ -37,7 +36,8 @@ proxy_check/
 - Mihomo 托管：Go 后端生成运行时配置，为每个节点分配独立 `mixed` listener。
 - 基础探测：`delay` 和 `tcping`，不依赖 ICMP ping。
 - SQLite 持久化：`monitor_tasks`、`nodes`、`probe_results`、`node_meta`。
-- API：`/api/tasks`、`/api/nodes`、`/api/stats`、`/api/tests/run`、`/metrics`。
+- API：`/api/tasks`、`/api/nodes`、`/api/stats`、`/api/tests/run`、`/metrics`、
+  `/api/tasks/{id}/miaospeed/run`、`/api/tasks/{id}/miaospeed/results`、`/api/miaospeed/catalog`。
 - React 可视化：任务列表、节点表格、状态、历史折线图。
 - Docker 部署：Node 22 构建前端，Go 构建后端，Debian slim runtime。
 
@@ -56,7 +56,7 @@ proxy_check/
 - Grafana 示例：`docs/grafana/proxy-check-v3.json`。
 - JSON 行日志，适合 Docker 和日志平台采集。
 
-### v4/v5 Go 主线与 MiaoSpeed
+### v4 Go 主线与 MiaoSpeed
 
 - Go 后端已覆盖 API、调度、存储、核心探测器、Mihomo 生命周期和静态页面托管。
 - 配置导入具备 SSRF 防护，拒绝 localhost、内网、link-local、multicast 等地址。
@@ -116,27 +116,31 @@ proxy_check/
 
 目标对齐参考结果图，把 MiaoSpeed 从“少量高级探测补充”升级为可从前端手动控制的全量测试工作台：
 
-- 后端新增 `miaospeed_full` 高级探测维度，集中调用 AirportR/MiaoSpeed 的下载、上传、HTTP/RTT 质量、
-  丢包、HTTP code、劫持检测、UDP/NAT、Geo、DNS 和服务解锁矩阵。
-- 前端新增“运行高级测试”入口，允许用户对单个任务手动触发 MiaoSpeed 全量测试；普通 60 秒轮询仍不自动跑高流量测试。
-- 结果页按参考图做成密集矩阵：节点、类型、状态、下载/上传速度条、DNS、网络质量、流媒体/服务解锁状态按列展示。
-- 流媒体和服务解锁走 MiaoSpeed `TEST_SCRIPT`，脚本从 `runtime/miaospeed/scripts/` 或配置字段加载；
-  未配置脚本的服务显示 `未配置`，失败显示错误状态，不伪造结果。
+- 已完成：MiaoSpeed full-test catalog、上传/下载矩阵 helper、full-test 配置、`miaospeed_full`
+  prober 和 factory 注册。
+- 已完成：`RunAdvancedTask` 服务层路径、MiaoSpeed 专用 API、结果矩阵响应结构、
+  对应后端测试，以及 `/dns/` 的深度测试入口。
+- 仍需完成：服务列选择、密集 MiaoSpeed full-test 结果矩阵页面、PNG 导出、AirportR 4.6.8 full matrix
+  联调和结果截图示例文档。
+- 流媒体和服务解锁必须走 MiaoSpeed `TEST_SCRIPT`，脚本从 `runtime/miaospeed/scripts/`
+  或配置字段加载；未配置脚本显示 `未配置`，失败显示错误状态，不伪造结果。
 - 默认服务列覆盖 Netflix、Disney+、YouTube、TikTok、OpenAI、Google、GitHub、Telegram、Spotify、Steam、
   Bilibili、Abema、DAZN、Hulu、Prime Video、HBO Max、Bahamut、BBC iPlayer、Claude、Gemini。
-- 前端支持服务列选择、节点详情图表、状态色块、速度条和结果 PNG 导出，便于形成类似参考图的可分享测试结果图。
-- 详细执行计划见 `docs/superpowers/plans/2026-05-29-miaospeed-full-test-dashboard.md`。
+- 后续执行状态直接维护在本节；过期的独立计划书已删除，避免出现失效路线和重复信息。
 
 ### P2 前端面板重设计
 
-视觉方向参考 `iplark.com` 和 `net.coffee`，但保持监控台效率：
+视觉方向已优先切到 `ip.net.coffee` / `ip.net.coffee/ip/` / `ip.net.coffee/dns/`：
 
-- 已补基础高级探测结果面板，能展示 DNS 泄漏、解锁状态和平均/峰值带宽。
-- 下一步将首屏重排为更完整的 IP、ASN、GEO、状态、评分、速度、DNS 泄漏、解锁徽章组合。
-- 保留左侧任务列表，右侧改为更强的网络质量详情面板。
-- 增加服务解锁矩阵和跑量结果卡片。
-- 增加浅色/深色主题。
-- 避免营销式首页，默认进入可操作监控台。
+- 已完成：Net.Coffee 风格顶栏、暗色/亮色主题、居中 1000px 内容容器。
+- `/` 保留节点监控台，但去掉左侧 Uptime Kuma 式侧栏，改为紧凑任务条 + 表格/详情面板。
+- `/ip/` 已拆成独立 IP 画像页，展示出口 IP、评分、ASN/GEO/ISP、网络质量、DNS 和解锁信号。
+- `/dns/` 已拆成独立 DNS 泄露检测页，包含功能卡、快速/深度检测按钮、结果表和折叠说明。
+- clone-website 提取资料保存在 `docs/research/ip-net-coffee/`，参考和本地 QA 截图保存在
+  `docs/design-references/`。
+- 已用本地 Go 托管页面验证 `/`、`/ip/`、`/dns/` 桌面与 390px 移动宽度无横向溢出；
+  `/dns/` 页面全局"导入"表单也已验证可打开。
+- 仍需在真实订阅节点数据下细调密集结果矩阵和导出图。
 
 ### P3 评分模型升级
 
@@ -153,12 +157,6 @@ proxy_check/
 - systemd 部署示例。
 - 远端 Docker 部署回归脚本。
 
-### P5 分布式探针
-
-- 新增 `probe_agents` 表。
-- 设计 agent-controller 协议，优先 HTTP/gRPC。
-- 多地域探测、任务分片和结果聚合。
-
 ## API 约定
 
 当前 API 继续保持：
@@ -169,6 +167,9 @@ proxy_check/
 - `DELETE /api/tasks/{id}`
 - `POST /api/tasks/{id}/refresh`
 - `POST /api/tasks/{id}/run`
+- `POST /api/tasks/{id}/miaospeed/run`
+- `GET /api/tasks/{id}/miaospeed/results`
+- `GET /api/miaospeed/catalog`
 - `GET /api/nodes`
 - `GET /api/nodes/{id}`
 - `GET /api/nodes/{id}/history`

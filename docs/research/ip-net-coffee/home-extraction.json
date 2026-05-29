@@ -1,0 +1,404 @@
+{
+  "bodyClasses": "",
+  "controls": [
+    {
+      "className": "ts-btn",
+      "placeholder": null,
+      "tag": "button",
+      "text": "",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "亮色模式",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "暗黑模式",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "跟随系统",
+      "type": null
+    },
+    {
+      "className": "",
+      "placeholder": null,
+      "tag": "input",
+      "text": "",
+      "type": "checkbox"
+    }
+  ],
+  "headings": [
+    {
+      "className": "",
+      "tag": "h1",
+      "text": "我的 IP 查询"
+    },
+    {
+      "className": "",
+      "tag": "h2",
+      "text": "网站分流测试"
+    }
+  ],
+  "htmlClasses": "",
+  "navLinks": [
+    {
+      "className": "active",
+      "href": "/",
+      "text": "IP查询查询"
+    },
+    {
+      "className": "",
+      "href": "/claude/",
+      "text": "Claude AI IP 检测Claude AIClaude"
+    },
+    {
+      "className": "",
+      "href": "/ip/",
+      "text": "IP评分评分"
+    },
+    {
+      "className": "",
+      "href": "/ping/",
+      "text": "全球 PingPing"
+    },
+    {
+      "className": "",
+      "href": "/dns/",
+      "text": "DNS泄露检测DNS"
+    },
+    {
+      "className": "",
+      "href": "/webrtc/",
+      "text": "WebRTC检测UDP"
+    },
+    {
+      "className": "",
+      "href": "/status/",
+      "text": "服务状态查询状态"
+    },
+    {
+      "className": "pc-only-new",
+      "href": "https://card.net.coffee/ip/",
+      "text": "IP卡片"
+    }
+  ],
+  "styles": [
+    {
+      "className": "",
+      "selector": "body",
+      "styles": {
+        "background": "rgb(13, 17, 23) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(13, 17, 23)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "2151.21px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px",
+        "maxWidth": "1440px",
+        "overflow": "clip visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "1440px"
+      },
+      "tag": "body",
+      "text": "(function(){ var btn=document.getElementById('ts-btn'); var menu=document.getElementById('ts-menu'); var wrap=document.getElementById('ts-wrap'); var html=document.documentElement; function current(){return localStorage."
+    },
+    {
+      "className": "container",
+      "selector": ".container",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "2080.23px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px 220px",
+        "maxWidth": "1000px",
+        "overflow": "visible",
+        "padding": "24px 20px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "1000px"
+      },
+      "tag": "div",
+      "text": "IP查询查询 Claude AI IP 检测Claude AIClaude IP评分评分 全球 PingPing DNS泄露检测DNS WebRTC检测UDP 服务状态查询状态 IP卡片 亮色模式 暗黑模式 跟随系统 我的 IP 查询 查看当前的 IP地址、地理位置 、网络连通性和 IP分流 隐藏IP IPv4 58.242.42.98 中国 安徽 淮南 田家庵 联通 家庭宽带 (ISP) 网络连通性 字节跳动字节 5ms 淘宝 32m"
+    },
+    {
+      "className": "nav",
+      "selector": ".nav",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "flex",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "400",
+        "gap": "20px",
+        "gridTemplateColumns": "none",
+        "height": "27.5938px",
+        "letterSpacing": "normal",
+        "lineHeight": "23.04px",
+        "margin": "0px 0px 20px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "nav",
+      "text": "IP查询查询 Claude AI IP 检测Claude AIClaude IP评分评分 全球 PingPing DNS泄露检测DNS WebRTC检测UDP 服务状态查询状态 IP卡片 亮色模式 暗黑模式 跟随系统"
+    },
+    {
+      "className": "active",
+      "selector": ".nav a.active",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "",
+        "borderBottom": "2px solid rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "600",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "27.5938px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.6px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px 0px 4px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "nowrap",
+        "width": "42.2891px"
+      },
+      "tag": "a",
+      "text": "IP查询查询"
+    },
+    {
+      "className": "",
+      "selector": "h1",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "28px",
+        "fontWeight": "700",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "44.7969px",
+        "letterSpacing": "normal",
+        "lineHeight": "44.8px",
+        "margin": "0px 0px 8px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "h1",
+      "text": "我的 IP 查询"
+    },
+    {
+      "className": "desc",
+      "selector": ".desc",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(201, 209, 217)",
+        "borderBottom": "0px none rgb(201, 209, 217)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(201, 209, 217)",
+        "boxShadow": "none",
+        "color": "rgb(201, 209, 217)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "23.0312px",
+        "letterSpacing": "normal",
+        "lineHeight": "23.04px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "878.961px"
+      },
+      "tag": "p",
+      "text": "查看当前的 IP地址、地理位置 、网络连通性和 IP分流"
+    },
+    {
+      "className": "main-table",
+      "selector": ".main-table",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "1px solid rgb(68, 76, 86)",
+        "borderBottom": "1px solid rgb(68, 76, 86)",
+        "borderRadius": "10px",
+        "borderTop": "1px solid rgb(68, 76, 86)",
+        "boxShadow": "rgba(0, 0, 0, 0.06) 0px 1px 4px 0px, rgba(0, 0, 0, 0.04) 0px 4px 12px 0px",
+        "color": "rgb(230, 237, 243)",
+        "display": "table",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "1413.55px",
+        "letterSpacing": "normal",
+        "lineHeight": "23.04px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "hidden",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "table",
+      "text": "Website IP Geolocation 网易 国内 58.242.42.98China China Unicom 字节跳动 国内 58.242.42.98China China Unicom Cloudflare中国 国内 2408:8644:3200:7:2b03:25fd:2b03:25feChina China Unicom 高通中国 国内 2408:8644:3200:7:2b03:25fd:2b03:25feChina "
+    },
+    {
+      "className": "badge badge-domestic",
+      "selector": ".badge",
+      "styles": {
+        "background": "rgb(219, 234, 254) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(219, 234, 254)",
+        "border": "0px none rgb(29, 78, 216)",
+        "borderBottom": "0px none rgb(29, 78, 216)",
+        "borderRadius": "10px",
+        "borderTop": "0px none rgb(29, 78, 216)",
+        "boxShadow": "none",
+        "color": "rgb(29, 78, 216)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "10.8px",
+        "fontWeight": "600",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "19.2734px",
+        "letterSpacing": "normal",
+        "lineHeight": "17.28px",
+        "margin": "0px 0px 0px 6px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "1px 8px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "37.5938px"
+      },
+      "tag": "span",
+      "text": "国内"
+    }
+  ],
+  "tables": [
+    {
+      "className": "main-table",
+      "headers": [
+        "Website",
+        "",
+        "IP",
+        "Geolocation"
+      ],
+      "index": 0,
+      "rowCount": 31
+    }
+  ],
+  "title": "IP 查询 - IP分流测试 - Net.Coffee",
+  "url": "https://ip.net.coffee/",
+  "vars": {
+    "--bg": "#0d1117",
+    "--bg-card": "#161b22",
+    "--bg-hover": "#21262d",
+    "--bg-soft": "#161b22",
+    "--border": "#30363d",
+    "--border-strong": "#444c56",
+    "--shadow": "0 1px 4px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)",
+    "--text": "#e6edf3",
+    "--text-muted": "#8b949e",
+    "--text-soft": "#c9d1d9"
+  }
+}

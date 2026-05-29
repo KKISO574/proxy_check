@@ -1,0 +1,622 @@
+{
+  "bodyClasses": "",
+  "controls": [
+    {
+      "className": "ts-btn",
+      "placeholder": null,
+      "tag": "button",
+      "text": "",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "亮色模式",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "暗黑模式",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "跟随系统",
+      "type": null
+    },
+    {
+      "className": "",
+      "placeholder": "如 8.8.8.8 或 2606:4700:4700::1111，留空自动查询当前 IP",
+      "tag": "input",
+      "text": "",
+      "type": "text"
+    },
+    {
+      "className": "",
+      "placeholder": null,
+      "tag": "button",
+      "text": "查询",
+      "type": null
+    },
+    {
+      "className": "copy-btn",
+      "placeholder": null,
+      "tag": "button",
+      "text": "📋",
+      "type": null
+    },
+    {
+      "className": "copy-btn",
+      "placeholder": null,
+      "tag": "button",
+      "text": "📋",
+      "type": null
+    },
+    {
+      "className": "chip chip-ok",
+      "placeholder": null,
+      "tag": "button",
+      "text": "🔍 检测常见端口",
+      "type": "button"
+    },
+    {
+      "className": "rd-toggle",
+      "placeholder": null,
+      "tag": "button",
+      "text": "展开全部 (5 条)",
+      "type": "button"
+    }
+  ],
+  "headings": [
+    {
+      "className": "",
+      "tag": "h1",
+      "text": "IP 评分查询"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "使用场景 / 类型"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "ASN / 运营商"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "技术指标"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "IP 情报（威胁指标）"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "风险深度检测"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "全球主要地区延迟测试全球Ping"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "地理位置（多源对比）"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "关联域名"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "位置历史"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "同机房 / 客户活跃ⓘ展示与当前 IP 归属同一 ASN 的其他活跃 IP，或同机房邻居的近似参考"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "ASN 历史"
+    },
+    {
+      "className": "",
+      "tag": "h3",
+      "text": "企业历史"
+    }
+  ],
+  "htmlClasses": "",
+  "navLinks": [
+    {
+      "className": "",
+      "href": "/",
+      "text": "IP查询查询"
+    },
+    {
+      "className": "",
+      "href": "/claude/",
+      "text": "Claude AI IP 检测Claude AIClaude"
+    },
+    {
+      "className": "active",
+      "href": "/ip/",
+      "text": "IP评分评分"
+    },
+    {
+      "className": "",
+      "href": "/ping/",
+      "text": "全球 PingPing"
+    },
+    {
+      "className": "",
+      "href": "/dns/",
+      "text": "DNS泄露检测DNS"
+    },
+    {
+      "className": "",
+      "href": "/webrtc/",
+      "text": "WebRTC检测UDP"
+    },
+    {
+      "className": "",
+      "href": "/status/",
+      "text": "服务状态查询状态"
+    },
+    {
+      "className": "pc-only-new",
+      "href": "https://card.net.coffee/ip/",
+      "text": "IP卡片"
+    }
+  ],
+  "styles": [
+    {
+      "className": "",
+      "selector": "body",
+      "styles": {
+        "background": "rgb(13, 17, 23) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(13, 17, 23)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "1942.4px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "hidden auto",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "1440px"
+      },
+      "tag": "body",
+      "text": "(function(){ var btn=document.getElementById(\"ts-btn\"),menu=document.getElementById(\"ts-menu\"),html=document.documentElement; function current(){return localStorage.getItem(\"theme\")||\"auto\";} function effective(){var c=c"
+    },
+    {
+      "className": "container",
+      "selector": ".container",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "1942.4px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px 220px",
+        "maxWidth": "1000px",
+        "overflow": "visible",
+        "padding": "24px 20px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "1000px"
+      },
+      "tag": "div",
+      "text": "IP查询查询 Claude AI IP 检测Claude AIClaude IP评分评分 全球 PingPing DNS泄露检测DNS WebRTC检测UDP 服务状态查询状态 IP卡片 亮色模式 暗黑模式 跟随系统 IP 评分查询 IP深度查询，家宽 or 机房 、人机流量、多源比对、地理经纬度、端口、滥用、黑名单、全球延迟一手掌握 103.156.242.197Taiwan KirinoIP 评分65 查询 使用场景 / 类型IP "
+    },
+    {
+      "className": "nav",
+      "selector": ".nav",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "flex",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "400",
+        "gap": "20px",
+        "gridTemplateColumns": "none",
+        "height": "27.5938px",
+        "letterSpacing": "normal",
+        "lineHeight": "23.04px",
+        "margin": "0px 0px 20px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "nav",
+      "text": "IP查询查询 Claude AI IP 检测Claude AIClaude IP评分评分 全球 PingPing DNS泄露检测DNS WebRTC检测UDP 服务状态查询状态 IP卡片 亮色模式 暗黑模式 跟随系统"
+    },
+    {
+      "className": "active",
+      "selector": ".nav a.active",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "",
+        "borderBottom": "2px solid rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "600",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "27.5938px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.6px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px 0px 4px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "nowrap",
+        "width": "42.2891px"
+      },
+      "tag": "a",
+      "text": "IP评分评分"
+    },
+    {
+      "className": "",
+      "selector": "h1",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "28px",
+        "fontWeight": "700",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "44.7969px",
+        "letterSpacing": "normal",
+        "lineHeight": "44.8px",
+        "margin": "0px 0px 8px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "h1",
+      "text": "IP 评分查询"
+    },
+    {
+      "className": "desc",
+      "selector": ".desc",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(201, 209, 217)",
+        "borderBottom": "0px none rgb(201, 209, 217)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(201, 209, 217)",
+        "boxShadow": "none",
+        "color": "rgb(201, 209, 217)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "23.0312px",
+        "letterSpacing": "normal",
+        "lineHeight": "23.04px",
+        "margin": "0px 0px 24px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "p",
+      "text": "IP深度查询，家宽 or 机房 、人机流量、多源比对、地理经纬度、端口、滥用、黑名单、全球延迟一手掌握"
+    },
+    {
+      "className": "ip-head",
+      "selector": ".ip-head",
+      "styles": {
+        "background": "rgb(22, 27, 34) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(22, 27, 34)",
+        "border": "1px solid rgb(68, 76, 86)",
+        "borderBottom": "1px solid rgb(68, 76, 86)",
+        "borderRadius": "10px",
+        "borderTop": "1px solid rgb(68, 76, 86)",
+        "boxShadow": "rgba(0, 0, 0, 0.4) 0px 1px 4px 0px, rgba(0, 0, 0, 0.3) 0px 4px 12px 0px",
+        "color": "rgb(230, 237, 243)",
+        "display": "flex",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "12px",
+        "gridTemplateColumns": "none",
+        "height": "64.5625px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px 0px 20px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "14px 18px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "div",
+      "text": "103.156.242.197Taiwan KirinoIP 评分65 查询"
+    },
+    {
+      "className": "search-bar",
+      "selector": ".search-bar",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "flex",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "6px",
+        "gridTemplateColumns": "none",
+        "height": "32px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "240.164px"
+      },
+      "tag": "div",
+      "text": "查询"
+    },
+    {
+      "className": "",
+      "selector": ".search-bar input",
+      "styles": {
+        "background": "rgb(22, 27, 34) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(22, 27, 34)",
+        "border": "1px solid rgb(68, 76, 86)",
+        "borderBottom": "1px solid rgb(68, 76, 86)",
+        "borderRadius": "8px",
+        "borderTop": "1px solid rgb(68, 76, 86)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.08px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "32px",
+        "letterSpacing": "normal",
+        "lineHeight": "normal",
+        "margin": "0px",
+        "maxWidth": "180px",
+        "overflow": "clip",
+        "padding": "6px 10px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "178px"
+      },
+      "tag": "input",
+      "text": ""
+    },
+    {
+      "className": "",
+      "selector": ".search-bar button",
+      "styles": {
+        "background": "rgb(26, 26, 26) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(26, 26, 26)",
+        "border": "0px none rgb(255, 255, 255)",
+        "borderBottom": "0px none rgb(255, 255, 255)",
+        "borderRadius": "8px",
+        "borderTop": "0px none rgb(255, 255, 255)",
+        "boxShadow": "none",
+        "color": "rgb(255, 255, 255)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "Arial",
+        "fontSize": "14.08px",
+        "fontWeight": "600",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "32px",
+        "letterSpacing": "normal",
+        "lineHeight": "normal",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "6px 14px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "nowrap",
+        "width": "56.1641px"
+      },
+      "tag": "button",
+      "text": "查询"
+    },
+    {
+      "className": "grid",
+      "selector": ".grid",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "grid",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "14px",
+        "gridTemplateColumns": "473px 473px",
+        "height": "323.344px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px 0px 16px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "div",
+      "text": "使用场景 / 类型IP 原生性原生 IP标记机房IP运营商类型Hosting人机流量机器偏多ASN归属KirinoNET企业信息RAID Networks Co., Ltd.服务商KirinoASN / 运营商ASNAS41378 📋CIDRⓘ无类别域间路由记法，表示 IP 所属的地址块范围。斜杠后数字越小，段越大（如 /24 = 256 个 IP，/16 = 65536 个 IP）。103.156.242.0/24 📋ASN 自报"
+    },
+    {
+      "className": "card",
+      "selector": ".card",
+      "styles": {
+        "background": "rgb(22, 27, 34) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(22, 27, 34)",
+        "border": "1px solid rgb(68, 76, 86)",
+        "borderBottom": "1px solid rgb(68, 76, 86)",
+        "borderRadius": "10px",
+        "borderTop": "1px solid rgb(68, 76, 86)",
+        "boxShadow": "rgba(0, 0, 0, 0.04) 0px 1px 4px 0px",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "323.344px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "14px 16px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "473px"
+      },
+      "tag": "div",
+      "text": "使用场景 / 类型IP 原生性原生 IP标记机房IP运营商类型Hosting人机流量机器偏多ASN归属KirinoNET企业信息RAID Networks Co., Ltd.服务商Kirino"
+    }
+  ],
+  "tables": [],
+  "title": "IP查询 - 评分/地理/ASN/运营商/风险检测 - Net.Coffee",
+  "url": "https://ip.net.coffee/ip/",
+  "vars": {
+    "--bg": "#0d1117",
+    "--bg-card": "#161b22",
+    "--bg-hover": "#21262d",
+    "--bg-soft": "#161b22",
+    "--border": "#30363d",
+    "--border-strong": "#444c56",
+    "--shadow": "0 1px 4px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)",
+    "--text": "#e6edf3",
+    "--text-muted": "#8b949e",
+    "--text-soft": "#c9d1d9"
+  }
+}

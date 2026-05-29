@@ -1,0 +1,434 @@
+{
+  "bodyClasses": "",
+  "controls": [
+    {
+      "className": "ts-btn",
+      "placeholder": null,
+      "tag": "button",
+      "text": "",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "亮色模式",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "暗黑模式",
+      "type": null
+    },
+    {
+      "className": "ts-item",
+      "placeholder": null,
+      "tag": "button",
+      "text": "跟随系统",
+      "type": null
+    },
+    {
+      "className": "",
+      "placeholder": null,
+      "tag": "button",
+      "text": "快速测试",
+      "type": null
+    },
+    {
+      "className": "",
+      "placeholder": null,
+      "tag": "button",
+      "text": "深度测试",
+      "type": null
+    }
+  ],
+  "headings": [
+    {
+      "className": "",
+      "tag": "h1",
+      "text": "DNS 泄露检测"
+    },
+    {
+      "className": "",
+      "tag": "h2",
+      "text": "📖 拓展阅读"
+    }
+  ],
+  "htmlClasses": "",
+  "navLinks": [
+    {
+      "className": "",
+      "href": "/",
+      "text": "IP查询查询"
+    },
+    {
+      "className": "",
+      "href": "/claude/",
+      "text": "Claude AI IP 检测Claude AIClaude"
+    },
+    {
+      "className": "",
+      "href": "/ip/",
+      "text": "IP评分评分"
+    },
+    {
+      "className": "",
+      "href": "/ping/",
+      "text": "全球 PingPing"
+    },
+    {
+      "className": "active",
+      "href": "/dns/",
+      "text": "DNS泄露检测DNS"
+    },
+    {
+      "className": "",
+      "href": "/webrtc/",
+      "text": "WebRTC检测UDP"
+    },
+    {
+      "className": "",
+      "href": "/status/",
+      "text": "服务状态查询状态"
+    },
+    {
+      "className": "pc-only-new",
+      "href": "https://card.net.coffee/ip/",
+      "text": "IP卡片"
+    }
+  ],
+  "styles": [
+    {
+      "className": "",
+      "selector": "body",
+      "styles": {
+        "background": "rgb(13, 17, 23) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(13, 17, 23)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "1400px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "1440px"
+      },
+      "tag": "body",
+      "text": "(function(){ var btn=document.getElementById(\"ts-btn\"),menu=document.getElementById(\"ts-menu\"),html=document.documentElement; function current(){return localStorage.getItem(\"theme\")||\"auto\";} function effective(){var c=c"
+    },
+    {
+      "className": "container",
+      "selector": ".container",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "712.805px",
+        "letterSpacing": "normal",
+        "lineHeight": "25.6px",
+        "margin": "0px 220px",
+        "maxWidth": "1000px",
+        "overflow": "visible",
+        "padding": "24px 20px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "1000px"
+      },
+      "tag": "div",
+      "text": "IP查询查询 Claude AI IP 检测Claude AIClaude IP评分评分 全球 PingPing DNS泄露检测DNS WebRTC检测UDP 服务状态查询状态 IP卡片 亮色模式 暗黑模式 跟随系统 DNS 泄露检测 知道吗？DNS 可能正在悄悄的暴露真实上网位置。一键检测，看看 DNS 有没有在背后出卖你的信息。 🔒 自建权威 DNS 数据查询更安全 ⚡ 检测更快 5 秒出结果 🎯 准确可靠 顶级架构准确无误 �"
+    },
+    {
+      "className": "nav",
+      "selector": ".nav",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "flex",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "400",
+        "gap": "20px",
+        "gridTemplateColumns": "none",
+        "height": "27.5938px",
+        "letterSpacing": "normal",
+        "lineHeight": "23.04px",
+        "margin": "0px 0px 20px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "nav",
+      "text": "IP查询查询 Claude AI IP 检测Claude AIClaude IP评分评分 全球 PingPing DNS泄露检测DNS WebRTC检测UDP 服务状态查询状态 IP卡片 亮色模式 暗黑模式 跟随系统"
+    },
+    {
+      "className": "active",
+      "selector": ".nav a.active",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "",
+        "borderBottom": "2px solid rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "600",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "27.5938px",
+        "letterSpacing": "normal",
+        "lineHeight": "21.6px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px 0px 4px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "nowrap",
+        "width": "88.1875px"
+      },
+      "tag": "a",
+      "text": "DNS泄露检测DNS"
+    },
+    {
+      "className": "",
+      "selector": "h1",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(230, 237, 243)",
+        "borderBottom": "0px none rgb(230, 237, 243)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(230, 237, 243)",
+        "boxShadow": "none",
+        "color": "rgb(230, 237, 243)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "28px",
+        "fontWeight": "700",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "44.7969px",
+        "letterSpacing": "normal",
+        "lineHeight": "44.8px",
+        "margin": "0px 0px 8px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "h1",
+      "text": "DNS 泄露检测"
+    },
+    {
+      "className": "desc",
+      "selector": ".desc",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(201, 209, 217)",
+        "borderBottom": "0px none rgb(201, 209, 217)",
+        "borderRadius": "0px",
+        "borderTop": "0px none rgb(201, 209, 217)",
+        "boxShadow": "none",
+        "color": "rgb(201, 209, 217)",
+        "display": "block",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "23.0312px",
+        "letterSpacing": "normal",
+        "lineHeight": "23.04px",
+        "margin": "0px 0px 24px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "960px"
+      },
+      "tag": "p",
+      "text": "知道吗？DNS 可能正在悄悄的暴露真实上网位置。一键检测，看看 DNS 有没有在背后出卖你的信息。"
+    },
+    {
+      "className": "dns-table",
+      "selector": ".dns-table",
+      "styles": {
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "border": "1px solid rgb(68, 76, 86)",
+        "borderBottom": "1px solid rgb(68, 76, 86)",
+        "borderRadius": "10px",
+        "borderTop": "1px solid rgb(68, 76, 86)",
+        "boxShadow": "rgba(0, 0, 0, 0.4) 0px 1px 4px 0px, rgba(0, 0, 0, 0.3) 0px 4px 12px 0px",
+        "color": "rgb(230, 237, 243)",
+        "display": "none",
+        "flexDirection": "row",
+        "fontFamily": "system-ui, sans-serif",
+        "fontSize": "14.4px",
+        "fontWeight": "400",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "auto",
+        "letterSpacing": "normal",
+        "lineHeight": "23.04px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "overflow": "hidden",
+        "padding": "0px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "100%"
+      },
+      "tag": "table",
+      "text": "# DNS 解析器 IP 归属地 服务商 状态"
+    },
+    {
+      "className": "",
+      "selector": ".test-area button",
+      "styles": {
+        "background": "rgb(230, 237, 243) none repeat scroll 0% 0% / auto padding-box border-box",
+        "backgroundColor": "rgb(230, 237, 243)",
+        "border": "0px none rgb(13, 17, 23)",
+        "borderBottom": "0px none rgb(13, 17, 23)",
+        "borderRadius": "8px",
+        "borderTop": "0px none rgb(13, 17, 23)",
+        "boxShadow": "none",
+        "color": "rgb(13, 17, 23)",
+        "display": "inline-block",
+        "flexDirection": "row",
+        "fontFamily": "Arial",
+        "fontSize": "16px",
+        "fontWeight": "600",
+        "gap": "normal",
+        "gridTemplateColumns": "none",
+        "height": "46.5px",
+        "letterSpacing": "normal",
+        "lineHeight": "normal",
+        "margin": "0px 8px",
+        "maxWidth": "none",
+        "overflow": "visible",
+        "padding": "12px 36px",
+        "position": "static",
+        "textTransform": "none",
+        "top": "auto",
+        "whiteSpace": "normal",
+        "width": "136px"
+      },
+      "tag": "button",
+      "text": "快速测试"
+    }
+  ],
+  "tables": [
+    {
+      "className": "dns-table",
+      "headers": [
+        "#",
+        "DNS 解析器 IP",
+        "归属地",
+        "服务商",
+        "状态"
+      ],
+      "index": 0,
+      "rowCount": 0
+    },
+    {
+      "className": "",
+      "headers": [
+        "协议",
+        "加密",
+        "隐蔽性",
+        "被封锁风险"
+      ],
+      "index": 1,
+      "rowCount": 4
+    },
+    {
+      "className": "",
+      "headers": [
+        "服务商",
+        "普通 DNS",
+        "DoT",
+        "DoH"
+      ],
+      "index": 2,
+      "rowCount": 6
+    }
+  ],
+  "title": "DNS 泄露检测 - DNS Leak Test - Net.Coffee",
+  "url": "https://ip.net.coffee/dns/",
+  "vars": {
+    "--bg": "#0d1117",
+    "--bg-card": "#161b22",
+    "--bg-hover": "#21262d",
+    "--bg-soft": "#161b22",
+    "--border": "#30363d",
+    "--border-strong": "#444c56",
+    "--shadow": "0 1px 4px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)",
+    "--text": "#e6edf3",
+    "--text-muted": "#8b949e",
+    "--text-soft": "#c9d1d9"
+  }
+}

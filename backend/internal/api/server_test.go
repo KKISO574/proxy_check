@@ -255,6 +255,78 @@ func TestGoAPIRunEndpointsUseProbeRunner(t *testing.T) {
 	}
 }
 
+func TestGoAPIMiaoSpeedEndpointsExposeCatalogRunAndResults(t *testing.T) {
+	dbPath := seedSQLite(t)
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open seed db: %v", err)
+	}
+	_, err = db.Exec(`
+		UPDATE node_meta SET dns_leak = 'clean' WHERE node_id = 1;
+		INSERT INTO probe_results (id, node_id, metric, target, latency_ms, value, data, success, error, created_at)
+		VALUES
+			(5, 1, 'miaospeed_full', 'full', NULL, 88.5, '{"download_mbps":88.5,"upload_mbps":12.25,"http_code":"204","packet_loss":0,"services":{"netflix":"US","openai":"允许"}}', 1, NULL, '2026-05-28T00:02:10Z'),
+			(6, 2, 'miaospeed_full', 'full', NULL, 25, '{"download_mbps":25,"upload_mbps":3.5,"http_code":"200","packet_loss":7.5,"services":{"netflix":"失败"}}', 1, NULL, '2026-05-28T00:02:11Z')
+	`)
+	if closeErr := db.Close(); closeErr != nil {
+		t.Fatalf("close seed db: %v", closeErr)
+	}
+	if err != nil {
+		t.Fatalf("seed miaospeed results: %v", err)
+	}
+	repo, err := storage.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer repo.Close()
+
+	runner := &fakeRunner{
+		advancedSummary: api.RunSummary{Nodes: 2, Results: 2, Errors: 0},
+	}
+	server := api.NewServer(repo, api.Options{Runner: runner})
+
+	catalog := getJSON(t, server, "/api/miaospeed/catalog").([]any)
+	if len(catalog) == 0 {
+		t.Fatalf("expected non-empty miaospeed catalog")
+	}
+	foundOpenAI := false
+	for _, item := range catalog {
+		service := item.(map[string]any)
+		if service["key"] == "openai" && service["script_id"] == "openai_unlock" {
+			foundOpenAI = true
+		}
+	}
+	if !foundOpenAI {
+		t.Fatalf("expected openai service in catalog: %#v", catalog)
+	}
+
+	run := postJSON(t, server, "/api/tasks/1/miaospeed/run", map[string]any{}).(map[string]any)
+	if run["nodes"] != float64(2) || run["results"] != float64(2) || run["errors"] != float64(0) {
+		t.Fatalf("unexpected advanced run summary: %#v", run)
+	}
+	if runner.advancedTaskID != 1 || runner.advancedCalls != 1 {
+		t.Fatalf("expected one advanced run for task 1, got id=%d calls=%d", runner.advancedTaskID, runner.advancedCalls)
+	}
+
+	grid := getJSON(t, server, "/api/tasks/1/miaospeed/results").(map[string]any)
+	rows := grid["rows"].([]any)
+	if len(rows) != 2 {
+		t.Fatalf("expected two miaospeed rows, got %#v", rows)
+	}
+	first := rows[0].(map[string]any)
+	if first["node_name"] != "node-a" || first["download_mbps"] != float64(88.5) || first["upload_mbps"] != float64(12.25) || first["http_code"] != "204" || first["dns_leak"] != "clean" {
+		t.Fatalf("unexpected first miaospeed row: %#v", first)
+	}
+	firstServices := first["services"].(map[string]any)
+	if firstServices["netflix"] != "US" || firstServices["openai"] != "允许" {
+		t.Fatalf("unexpected first services: %#v", firstServices)
+	}
+	second := rows[1].(map[string]any)
+	if second["node_name"] != "node-b" || second["packet_loss"] != float64(7.5) || second["dns_leak"] != nil {
+		t.Fatalf("unexpected second miaospeed row: %#v", second)
+	}
+}
+
 func TestGoAPIHistoryReturnsNotFoundForMissingNode(t *testing.T) {
 	dbPath := seedSQLite(t)
 	repo, err := storage.OpenSQLite(dbPath)
@@ -382,10 +454,13 @@ func TestGoAPICreateTaskCleansUpWhenConfigWriteFails(t *testing.T) {
 }
 
 type fakeRunner struct {
-	taskID      int
-	runAllCalls int
-	taskSummary api.RunSummary
-	allSummary  api.RunSummary
+	taskID          int
+	runAllCalls     int
+	advancedTaskID  int
+	advancedCalls   int
+	taskSummary     api.RunSummary
+	allSummary      api.RunSummary
+	advancedSummary api.RunSummary
 }
 
 func (r *fakeRunner) RunTask(taskID int) (api.RunSummary, error) {
@@ -396,6 +471,12 @@ func (r *fakeRunner) RunTask(taskID int) (api.RunSummary, error) {
 func (r *fakeRunner) RunAll() (api.RunSummary, error) {
 	r.runAllCalls++
 	return r.allSummary, nil
+}
+
+func (r *fakeRunner) RunAdvancedTask(taskID int) (api.RunSummary, error) {
+	r.advancedTaskID = taskID
+	r.advancedCalls++
+	return r.advancedSummary, nil
 }
 
 func getJSON(t *testing.T, handler http.Handler, target string) any {

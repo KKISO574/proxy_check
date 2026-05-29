@@ -51,6 +51,16 @@ func (s *Service) RunTask(taskID int) (storage.RunSummary, error) {
 	return s.runTaskUnlocked(taskID)
 }
 
+func (s *Service) RunAdvancedTask(taskID int) (storage.RunSummary, error) {
+	if !s.mu.TryLock() {
+		return storage.RunSummary{Errors: 1}, nil
+	}
+	defer s.mu.Unlock()
+	return s.runTaskWithPredicate(taskID, func(prober Prober) bool {
+		return isAdvancedProber(prober)
+	})
+}
+
 func (s *Service) RunAll() (storage.RunSummary, error) {
 	tasks, err := s.repo.Tasks()
 	if err != nil {
@@ -73,6 +83,10 @@ func (s *Service) RunAll() (storage.RunSummary, error) {
 }
 
 func (s *Service) runTaskUnlocked(taskID int) (storage.RunSummary, error) {
+	return s.runTaskWithPredicate(taskID, func(Prober) bool { return true })
+}
+
+func (s *Service) runTaskWithPredicate(taskID int, include func(Prober) bool) (storage.RunSummary, error) {
 	task, err := s.repo.GetTask(taskID)
 	if err != nil {
 		return storage.RunSummary{}, err
@@ -118,7 +132,7 @@ func (s *Service) runTaskUnlocked(taskID int) (storage.RunSummary, error) {
 
 			collected[index] = nodeProbeResults{
 				nodeID:  node.ID,
-				results: s.runNode(context.Background(), task, node),
+				results: s.runNodeWithPredicate(context.Background(), task, node, include),
 			}
 		}()
 	}
@@ -152,8 +166,15 @@ type nodeProbeResults struct {
 }
 
 func (s *Service) runNode(ctx context.Context, task *storage.Task, node storage.Node) []storage.ProbeResultInput {
+	return s.runNodeWithPredicate(ctx, task, node, func(Prober) bool { return true })
+}
+
+func (s *Service) runNodeWithPredicate(ctx context.Context, task *storage.Task, node storage.Node, include func(Prober) bool) []storage.ProbeResultInput {
 	results := make([]storage.ProbeResultInput, 0)
 	for _, prober := range s.options.Probers {
+		if !include(prober) {
+			continue
+		}
 		if isAdvancedProber(prober) && (task == nil || !task.AdvancedProbesEnabled) {
 			continue
 		}

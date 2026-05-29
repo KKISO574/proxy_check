@@ -87,6 +87,25 @@ type RunSummary struct {
 	Errors  int `json:"errors"`
 }
 
+type MiaoSpeedNodeResult struct {
+	NodeID       int               `json:"node_id"`
+	NodeName     string            `json:"node_name"`
+	NodeType     *string           `json:"node_type"`
+	Status       string            `json:"status"`
+	DownloadMbps *float64          `json:"download_mbps"`
+	UploadMbps   *float64          `json:"upload_mbps"`
+	HTTPCode     string            `json:"http_code"`
+	PacketLoss   *float64          `json:"packet_loss"`
+	DNSLeak      *string           `json:"dns_leak"`
+	Services     map[string]string `json:"services"`
+	Raw          map[string]any    `json:"raw"`
+	CreatedAt    *string           `json:"created_at"`
+}
+
+type MiaoSpeedResultGrid struct {
+	Rows []MiaoSpeedNodeResult `json:"rows"`
+}
+
 type NodeInput struct {
 	Name      string
 	Type      *string

@@ -166,6 +166,57 @@ func TestServiceRunTaskSkipsAdvancedProbersUnlessTaskEnablesThem(t *testing.T) {
 	}
 }
 
+func TestRunAdvancedTaskRunsOnlyAdvancedProbers(t *testing.T) {
+	dbPath := seedServiceSQLite(t)
+	repo, err := storage.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer repo.Close()
+
+	enabled := true
+	if _, err := repo.UpdateTask(1, storage.TaskPatch{AdvancedProbesEnabled: &enabled}); err != nil {
+		t.Fatalf("enable advanced probes: %v", err)
+	}
+	service := NewService(repo, Options{
+		Probers: []Prober{
+			StaticProber(func(storage.Node) []storage.ProbeResultInput {
+				return []storage.ProbeResultInput{{Metric: "delay", Target: "delay-url", Success: true}}
+			}),
+			AdvancedStaticProber(func(storage.Node) []storage.ProbeResultInput {
+				return []storage.ProbeResultInput{{Metric: "miaospeed_full", Target: "full", Success: true}}
+			}),
+		},
+	})
+
+	summary, err := service.RunAdvancedTask(1)
+	if err != nil {
+		t.Fatalf("run advanced: %v", err)
+	}
+	if summary.Nodes != 2 || summary.Results != 2 || summary.Errors != 0 {
+		t.Fatalf("advanced run summary = %#v", summary)
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open check db: %v", err)
+	}
+	defer db.Close()
+	var normalCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM probe_results WHERE metric = 'delay'").Scan(&normalCount); err != nil {
+		t.Fatalf("count normal results: %v", err)
+	}
+	if normalCount != 0 {
+		t.Fatalf("RunAdvancedTask saved %d normal results", normalCount)
+	}
+	var advancedCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM probe_results WHERE metric = 'miaospeed_full'").Scan(&advancedCount); err != nil {
+		t.Fatalf("count advanced results: %v", err)
+	}
+	if advancedCount != 2 {
+		t.Fatalf("RunAdvancedTask saved %d advanced results", advancedCount)
+	}
+}
+
 type StaticProber func(node storage.Node) []storage.ProbeResultInput
 
 func (p StaticProber) Probe(_ context.Context, node storage.Node) []storage.ProbeResultInput {

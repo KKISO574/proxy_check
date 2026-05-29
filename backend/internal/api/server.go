@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"proxycheck/backend/internal/clash"
+	"proxycheck/backend/internal/miaospeed"
 	"proxycheck/backend/internal/storage"
 )
 
@@ -36,6 +37,7 @@ type Repository interface {
 type ProbeRunner interface {
 	RunTask(taskID int) (RunSummary, error)
 	RunAll() (RunSummary, error)
+	RunAdvancedTask(taskID int) (RunSummary, error)
 }
 
 type RunSummary = storage.RunSummary
@@ -265,6 +267,9 @@ func (s *Server) routes() {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 		_, _ = w.Write([]byte(BuildPrometheus(nodes)))
 	})
+	s.mux.HandleFunc("GET /api/miaospeed/catalog", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONValue(w, miaospeed.DefaultServiceCatalog())
+	})
 	s.mux.HandleFunc("POST /api/tasks/{id}/run", func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pathInt(w, r, "id")
 		if !ok {
@@ -276,6 +281,30 @@ func (s *Server) routes() {
 		}
 		summary, err := s.opts.Runner.RunTask(id)
 		writeJSON(w, summary, err)
+	})
+	s.mux.HandleFunc("POST /api/tasks/{id}/miaospeed/run", func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathInt(w, r, "id")
+		if !ok {
+			return
+		}
+		if s.opts.Runner == nil {
+			writeError(w, http.StatusServiceUnavailable, fmt.Errorf("probe runner is not configured"))
+			return
+		}
+		summary, err := s.opts.Runner.RunAdvancedTask(id)
+		writeJSON(w, summary, err)
+	})
+	s.mux.HandleFunc("GET /api/tasks/{id}/miaospeed/results", func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathInt(w, r, "id")
+		if !ok {
+			return
+		}
+		nodes, err := repo.Nodes(&id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSONValue(w, BuildMiaoSpeedResultGrid(nodes))
 	})
 	s.mux.HandleFunc("POST /api/tests/run", func(w http.ResponseWriter, _ *http.Request) {
 		if s.opts.Runner == nil {
@@ -646,6 +675,78 @@ func BuildPrometheus(nodes []storage.Node) string {
 		}
 	}
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func BuildMiaoSpeedResultGrid(nodes []storage.Node) storage.MiaoSpeedResultGrid {
+	rows := make([]storage.MiaoSpeedNodeResult, 0, len(nodes))
+	for _, node := range nodes {
+		metric, ok := node.Metrics["miaospeed_full"]
+		if !ok || metric.Data == nil {
+			rows = append(rows, storage.MiaoSpeedNodeResult{
+				NodeID:   node.ID,
+				NodeName: node.Name,
+				NodeType: node.Type,
+				Status:   "pending",
+				Services: map[string]string{},
+				Raw:      map[string]any{},
+			})
+			continue
+		}
+		raw := map[string]any{}
+		if err := json.Unmarshal([]byte(*metric.Data), &raw); err != nil {
+			raw = map[string]any{"decode_error": err.Error()}
+		}
+		var dnsLeak *string
+		if node.Meta != nil {
+			dnsLeak = node.Meta.DNSLeak
+		}
+		rows = append(rows, storage.MiaoSpeedNodeResult{
+			NodeID:       node.ID,
+			NodeName:     node.Name,
+			NodeType:     node.Type,
+			Status:       node.Status,
+			DownloadMbps: floatPtrFromAny(raw["download_mbps"]),
+			UploadMbps:   floatPtrFromAny(raw["upload_mbps"]),
+			HTTPCode:     stringFromAny(raw["http_code"]),
+			PacketLoss:   floatPtrFromAny(raw["packet_loss"]),
+			DNSLeak:      dnsLeak,
+			Services:     stringMapFromAny(raw["services"]),
+			Raw:          raw,
+			CreatedAt:    &metric.CreatedAt,
+		})
+	}
+	return storage.MiaoSpeedResultGrid{Rows: rows}
+}
+
+func floatPtrFromAny(value any) *float64 {
+	switch typed := value.(type) {
+	case float64:
+		return &typed
+	case int:
+		converted := float64(typed)
+		return &converted
+	default:
+		return nil
+	}
+}
+
+func stringFromAny(value any) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprint(value)
+}
+
+func stringMapFromAny(value any) map[string]string {
+	raw, ok := value.(map[string]any)
+	if !ok {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(raw))
+	for key, item := range raw {
+		out[key] = fmt.Sprint(item)
+	}
+	return out
 }
 
 func nodeLabels(node storage.Node, metric, target string) map[string]string {

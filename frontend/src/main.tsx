@@ -206,8 +206,9 @@ function SignalBoard({
   detail: NodeDetail | null;
   stats: Stats | null;
 }) {
-  const meta = detail?.meta ?? selected?.meta;
-  const metrics = detail?.metrics ?? selected?.metrics;
+  const activeDetail = selected && detail?.id === selected.id ? detail : null;
+  const meta = activeDetail?.meta ?? selected?.meta;
+  const metrics = activeDetail?.metrics ?? selected?.metrics;
   const bandwidth = metrics?.miaospeed_bandwidth;
   const bandwidthData = parseMetricData(bandwidth?.data);
   const averageMbps = bandwidth?.value ?? numberFromData(bandwidthData, "average_mbps");
@@ -218,8 +219,8 @@ function SignalBoard({
     ["YouTube", meta?.youtube_unlock]
   ];
   const unlockedCount = unlockItems.filter(([, value]) => isPositiveStatus(value)).length;
-  const score = detail?.score ?? selected?.score ?? null;
-  const confidence = Math.round(((detail?.score_confidence ?? selected?.score_confidence) || 0) * 100);
+  const score = activeDetail?.score ?? selected?.score ?? null;
+  const confidence = Math.round(((activeDetail?.score_confidence ?? selected?.score_confidence) || 0) * 100);
 
   return (
     <section className="signal-board">
@@ -851,7 +852,11 @@ function App() {
   }, [selectedTaskId]);
 
   useEffect(() => {
-    if (selectedId === null) return;
+    if (selectedId === null) {
+      setDetail(null);
+      setHistories({});
+      return;
+    }
     const nodeId = selectedId;
     async function loadDetail() {
       try {

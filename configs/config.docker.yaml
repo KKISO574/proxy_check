@@ -66,6 +66,16 @@ miaospeed:
   download_url: ""
   download_duration_seconds: 5
   download_threading: 2
+  upload_url: https://speed.cloudflare.com/__up
+  upload_duration_seconds: 5
+  upload_threading: 1
+  full_test_profile:
+    include_download: true
+    include_upload: true
+    include_network_quality: true
+    include_geo: true
+    include_dns: true
+    include_unlock: true
   task_timeout_seconds: 30
   max_bandwidth_concurrency: 1
   script_timeout_ms: 10000
@@ -73,3 +83,25 @@ miaospeed:
   dns_leak_script_path: ""
   unlock_scripts: {}
   unlock_script_paths: {}
+  service_scripts: {}
+  service_script_paths:
+    netflix: ""
+    disney: ""
+    youtube: ""
+    tiktok: ""
+    openai: ""
+    google: ""
+    github: ""
+    telegram: ""
+    spotify: ""
+    steam: ""
+    bilibili: ""
+    abema: ""
+    dazn: ""
+    hulu: ""
+    prime_video: ""
+    hbo_max: ""
+    bahamut: ""
+    bbc_iplayer: ""
+    claude: ""
+    gemini: ""

@@ -50,29 +50,44 @@ type TCPTarget struct {
 	Port int    `yaml:"port"`
 }
 
+type MiaoSpeedFullTestProfile struct {
+	IncludeDownload       bool `yaml:"include_download"`
+	IncludeUpload         bool `yaml:"include_upload"`
+	IncludeNetworkQuality bool `yaml:"include_network_quality"`
+	IncludeGeo            bool `yaml:"include_geo"`
+	IncludeDNS            bool `yaml:"include_dns"`
+	IncludeUnlock         bool `yaml:"include_unlock"`
+}
+
 type MiaoSpeedConfig struct {
-	Enabled                 bool              `yaml:"enabled"`
-	ManageSidecar           bool              `yaml:"manage_sidecar"`
-	Bin                     string            `yaml:"bin"`
-	Args                    []string          `yaml:"args"`
-	WorkDir                 string            `yaml:"work_dir"`
-	WSURL                   string            `yaml:"ws_url"`
-	TokenEnv                string            `yaml:"token_env"`
-	BuildTokenEnv           string            `yaml:"build_token_env"`
-	BuildTokens             []string          `yaml:"build_tokens"`
-	Invoker                 string            `yaml:"invoker"`
-	TimeoutMS               int               `yaml:"timeout_ms"`
-	StartTimeoutMS          int               `yaml:"start_timeout_ms"`
-	DownloadURL             string            `yaml:"download_url"`
-	DownloadDurationSeconds int               `yaml:"download_duration_seconds"`
-	DownloadThreading       int               `yaml:"download_threading"`
-	TaskTimeoutSeconds      int               `yaml:"task_timeout_seconds"`
-	MaxBandwidthConcurrency int               `yaml:"max_bandwidth_concurrency"`
-	ScriptTimeoutMS         int               `yaml:"script_timeout_ms"`
-	DNSLeakScript           string            `yaml:"dns_leak_script"`
-	DNSLeakScriptPath       string            `yaml:"dns_leak_script_path"`
-	UnlockScripts           map[string]string `yaml:"unlock_scripts"`
-	UnlockScriptPaths       map[string]string `yaml:"unlock_script_paths"`
+	Enabled                 bool                     `yaml:"enabled"`
+	ManageSidecar           bool                     `yaml:"manage_sidecar"`
+	Bin                     string                   `yaml:"bin"`
+	Args                    []string                 `yaml:"args"`
+	WorkDir                 string                   `yaml:"work_dir"`
+	WSURL                   string                   `yaml:"ws_url"`
+	TokenEnv                string                   `yaml:"token_env"`
+	BuildTokenEnv           string                   `yaml:"build_token_env"`
+	BuildTokens             []string                 `yaml:"build_tokens"`
+	Invoker                 string                   `yaml:"invoker"`
+	TimeoutMS               int                      `yaml:"timeout_ms"`
+	StartTimeoutMS          int                      `yaml:"start_timeout_ms"`
+	DownloadURL             string                   `yaml:"download_url"`
+	DownloadDurationSeconds int                      `yaml:"download_duration_seconds"`
+	DownloadThreading       int                      `yaml:"download_threading"`
+	UploadURL               string                   `yaml:"upload_url"`
+	UploadDurationSeconds   int                      `yaml:"upload_duration_seconds"`
+	UploadThreading         int                      `yaml:"upload_threading"`
+	TaskTimeoutSeconds      int                      `yaml:"task_timeout_seconds"`
+	MaxBandwidthConcurrency int                      `yaml:"max_bandwidth_concurrency"`
+	ScriptTimeoutMS         int                      `yaml:"script_timeout_ms"`
+	DNSLeakScript           string                   `yaml:"dns_leak_script"`
+	DNSLeakScriptPath       string                   `yaml:"dns_leak_script_path"`
+	UnlockScripts           map[string]string        `yaml:"unlock_scripts"`
+	UnlockScriptPaths       map[string]string        `yaml:"unlock_script_paths"`
+	ServiceScripts          map[string]string        `yaml:"service_scripts"`
+	ServiceScriptPaths      map[string]string        `yaml:"service_script_paths"`
+	FullTestProfile         MiaoSpeedFullTestProfile `yaml:"full_test_profile"`
 }
 
 func DefaultSettings() Settings {
@@ -118,11 +133,24 @@ func DefaultSettings() Settings {
 			StartTimeoutMS:          10000,
 			DownloadDurationSeconds: 5,
 			DownloadThreading:       2,
+			UploadURL:               "https://speed.cloudflare.com/__up",
+			UploadDurationSeconds:   5,
+			UploadThreading:         1,
 			TaskTimeoutSeconds:      30,
 			MaxBandwidthConcurrency: 1,
 			ScriptTimeoutMS:         10000,
 			UnlockScripts:           map[string]string{},
 			UnlockScriptPaths:       map[string]string{},
+			ServiceScripts:          map[string]string{},
+			ServiceScriptPaths:      map[string]string{},
+			FullTestProfile: MiaoSpeedFullTestProfile{
+				IncludeDownload:       true,
+				IncludeUpload:         true,
+				IncludeNetworkQuality: true,
+				IncludeGeo:            true,
+				IncludeDNS:            true,
+				IncludeUnlock:         true,
+			},
 		},
 	}
 }

@@ -111,6 +111,43 @@ func TestDefaultSettingsUseAirportRMiaoSpeedBuildToken(t *testing.T) {
 	}
 }
 
+func TestMiaoSpeedFullTestConfigLoadsUploadAndServiceScriptPaths(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	content := []byte(`
+miaospeed:
+  enabled: true
+  upload_url: https://speed.cloudflare.com/__up
+  upload_duration_seconds: 4
+  upload_threading: 2
+  full_test_profile:
+    include_download: true
+    include_upload: true
+    include_network_quality: true
+    include_geo: true
+    include_dns: true
+    include_unlock: true
+  service_script_paths:
+    netflix: /app/runtime/miaospeed/scripts/netflix.js
+    tiktok: /app/runtime/miaospeed/scripts/tiktok.js
+`)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	settings, err := LoadSettings(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if settings.MiaoSpeed.UploadURL != "https://speed.cloudflare.com/__up" {
+		t.Fatalf("unexpected upload url: %#v", settings.MiaoSpeed)
+	}
+	if !settings.MiaoSpeed.FullTestProfile.IncludeUnlock || !settings.MiaoSpeed.FullTestProfile.IncludeDownload {
+		t.Fatalf("unexpected full profile: %#v", settings.MiaoSpeed.FullTestProfile)
+	}
+	if settings.MiaoSpeed.ServiceScriptPaths["tiktok"] != "/app/runtime/miaospeed/scripts/tiktok.js" {
+		t.Fatalf("unexpected service paths: %#v", settings.MiaoSpeed.ServiceScriptPaths)
+	}
+}
+
 func TestBundledConfigFilesLoad(t *testing.T) {
 	root := filepath.Clean(filepath.Join("..", "..", ".."))
 	for _, path := range []string{

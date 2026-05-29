@@ -213,6 +213,40 @@ func TestWebSocketClientSignsRequestWhenTokenConfigured(t *testing.T) {
 	}
 }
 
+func TestWebSocketClientAddsBuildTokenHintOnVerificationFailure(t *testing.T) {
+	upgrader := websocket.Upgrader{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Fatalf("upgrade websocket: %v", err)
+		}
+		defer conn.Close()
+		var received map[string]any
+		if err := conn.ReadJSON(&received); err != nil {
+			t.Fatalf("read request: %v", err)
+		}
+		if err := conn.WriteJSON(map[string]any{
+			"Error": "cannot verify the request, please check your token",
+		}); err != nil {
+			t.Fatalf("write error frame: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client := NewWebSocketClient(
+		"ws"+server.URL[len("http"):],
+		1000,
+		WithToken("server-token"),
+	)
+	_, err := client.Run(context.Background(), BuildRequest(signFixtureRequest()), nil)
+	if err == nil {
+		t.Fatalf("expected verification error")
+	}
+	if !strings.Contains(err.Error(), "MIAOSPEED_BUILD_TOKENS") {
+		t.Fatalf("expected build token hint, got %v", err)
+	}
+}
+
 func TestNormalizeFrameParsesFinalMatrixPayloads(t *testing.T) {
 	raw := map[string]any{
 		"ID":               "task-1",

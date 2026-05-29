@@ -102,6 +102,8 @@ proxy_check/
   自定义 `miaospeed.args` 时按用户参数启动。
 - Prober factory 现在只有在 `miaospeed.enabled: true` 时才注册 `miaospeed_*` 维度。
 - 已支持从文件加载 DNS/解锁脚本，推荐放在 `runtime/miaospeed/scripts/`。
+- 测试机已能下载并启动正式 4.3.9-Core release；该 release 请求签名仍需要匹配的
+  `MIAOSPEED_BUILD_TOKENS`，无匹配 token 时会返回 `cannot verify the request`。
 - 使用正式发布或正式构建的 MiaoSpeed 二进制验证生产 DNS leak 脚本。
 - 验证 Netflix、Disney、OpenAI、YouTube 等解锁脚本输出。
 - 将 MiaoSpeed 结果稳定写入 `probe_results` 与 `node_meta`。

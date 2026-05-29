@@ -349,7 +349,8 @@ DOWNLOAD_RETRY=5 DOWNLOAD_RETRY_DELAY=3 \
   与 `miaospeed.ws_url` 的 host:port 传给正式 4.3.9-Core release；
   如果你填写 `miaospeed.args`，后端会按自定义参数启动
 - 配置 `MIAOSPEED_TOKEN`；如果使用的 MiaoSpeed 二进制带 build token，还需要配置
-  `MIAOSPEED_BUILD_TOKENS`，多个 token 用 `|` 分隔
+  `MIAOSPEED_BUILD_TOKENS`，多个 token 用 `|` 分隔；正式 release 如果返回
+  `cannot verify the request`，优先检查该值是否和二进制构建时的 build token 匹配
 - DNS 泄漏和解锁检测走 MiaoSpeed 上游真实的 `TEST_SCRIPT` matrix：
   `dns_leak_script` / `dns_leak_script_path` 提供 DNS 脚本，
   `unlock_scripts` / `unlock_script_paths` 提供 `netflix/disney/openai/youtube`

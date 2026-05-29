@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -235,7 +236,7 @@ func (c *WebSocketClient) Run(ctx context.Context, request map[string]any, onFra
 		}
 		frame, err := NormalizeFrame(raw)
 		if err != nil {
-			return Frame{}, err
+			return Frame{}, enrichRunError(err)
 		}
 		if onFrame != nil {
 			onFrame(frame)
@@ -244,6 +245,17 @@ func (c *WebSocketClient) Run(ctx context.Context, request map[string]any, onFra
 			return frame, nil
 		}
 	}
+}
+
+func enrichRunError(err error) error {
+	if err == nil {
+		return nil
+	}
+	message := err.Error()
+	if strings.Contains(message, "cannot verify the request") {
+		return fmt.Errorf("%s; check MIAOSPEED_TOKEN and set MIAOSPEED_BUILD_TOKENS to the build token segments used by this MiaoSpeed binary", message)
+	}
+	return err
 }
 
 type wireMatrix struct {

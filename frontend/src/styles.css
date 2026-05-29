@@ -363,6 +363,135 @@ select {
   margin-bottom: 14px;
 }
 
+.signal-board {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.35fr) minmax(110px, 0.55fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(150px, 0.85fr);
+  gap: 0;
+  margin-bottom: 14px;
+  overflow: hidden;
+  border: 1px solid #cfe1d6;
+  border-radius: 8px;
+  background: #f7fbf8;
+}
+
+.signal-primary,
+.signal-score,
+.signal-facts,
+.signal-metrics,
+.signal-unlocks {
+  min-width: 0;
+  padding: 14px;
+}
+
+.signal-score,
+.signal-facts,
+.signal-metrics,
+.signal-unlocks {
+  border-left: 1px solid #dcebe2;
+}
+
+.signal-kicker,
+.signal-score span,
+.signal-facts span,
+.signal-metrics span,
+.signal-unlocks > span {
+  display: block;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.signal-primary h3 {
+  margin: 5px 0 4px;
+  overflow: hidden;
+  color: #0f2419;
+  font-size: 22px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-primary p {
+  margin: 0;
+  overflow: hidden;
+  color: #536477;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-score strong {
+  display: block;
+  margin-top: 3px;
+  color: #0f2419;
+  font-size: 36px;
+  line-height: 1;
+}
+
+.signal-score small {
+  display: block;
+  margin-top: 5px;
+  color: #6d7c90;
+  font-size: 12px;
+}
+
+.signal-facts,
+.signal-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.signal-facts div:first-child {
+  grid-column: 1 / -1;
+}
+
+.signal-facts strong,
+.signal-metrics strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-unlocks {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.signal-unlocks div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.signal-unlocks em {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid #dbe4ee;
+  border-radius: 999px;
+  color: #687789;
+  background: #ffffff;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.signal-unlocks em.ok {
+  color: #047857;
+  border-color: #b7e4c8;
+  background: #e8f7ef;
+}
+
 .metric-card {
   display: flex;
   align-items: center;
@@ -842,6 +971,15 @@ tbody tr:hover,
     grid-template-columns: 260px minmax(0, 1fr);
   }
 
+  .signal-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .signal-metrics,
+  .signal-unlocks {
+    border-top: 1px solid #dcebe2;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
   }
@@ -887,6 +1025,18 @@ tbody tr:hover,
 
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .signal-board {
+    grid-template-columns: 1fr;
+  }
+
+  .signal-score,
+  .signal-facts,
+  .signal-metrics,
+  .signal-unlocks {
+    border-top: 1px solid #dcebe2;
+    border-left: 0;
   }
 
   .toolbar {

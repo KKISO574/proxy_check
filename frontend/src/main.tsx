@@ -189,6 +189,106 @@ function MetricCard({
   );
 }
 
+function isPositiveStatus(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+  return ["full", "available", "unlock", "unlocked", "allow", "allowed", "support", "yes", "true", "ok"].some((token) =>
+    normalized.includes(token)
+  );
+}
+
+function SignalBoard({
+  selected,
+  detail,
+  stats
+}: {
+  selected: NodeItem | null;
+  detail: NodeDetail | null;
+  stats: Stats | null;
+}) {
+  const meta = detail?.meta ?? selected?.meta;
+  const metrics = detail?.metrics ?? selected?.metrics;
+  const bandwidth = metrics?.miaospeed_bandwidth;
+  const bandwidthData = parseMetricData(bandwidth?.data);
+  const averageMbps = bandwidth?.value ?? numberFromData(bandwidthData, "average_mbps");
+  const unlockItems = [
+    ["Netflix", meta?.netflix_unlock],
+    ["Disney+", meta?.disney_unlock],
+    ["OpenAI", meta?.openai_unlock],
+    ["YouTube", meta?.youtube_unlock]
+  ];
+  const unlockedCount = unlockItems.filter(([, value]) => isPositiveStatus(value)).length;
+  const score = detail?.score ?? selected?.score ?? null;
+  const confidence = Math.round(((detail?.score_confidence ?? selected?.score_confidence) || 0) * 100);
+
+  return (
+    <section className="signal-board">
+      <div className="signal-primary">
+        <span className="signal-kicker">{selected ? "当前节点画像" : "全局监测概览"}</span>
+        <h3>{selected?.name ?? "选择节点查看出口画像"}</h3>
+        <p>
+          {selected
+            ? `${selected.type ?? "unknown"} · listener ${selected.listener_port ?? "-"}`
+            : `${stats?.total_nodes ?? 0} 个节点 · 平均延迟 ${formatLatency(stats?.average_delay_ms ?? null)}`}
+        </p>
+      </div>
+
+      <div className="signal-score">
+        <span>评分</span>
+        <strong>{formatScore(score)}</strong>
+        <small>置信度 {confidence}%</small>
+      </div>
+
+      <div className="signal-facts">
+        <div>
+          <span>出口 IP</span>
+          <strong>{meta?.exit_ip ?? "-"}</strong>
+        </div>
+        <div>
+          <span>ASN / GEO</span>
+          <strong>
+            {meta?.asn ?? "-"} · {meta?.country ?? "-"}
+          </strong>
+        </div>
+        <div>
+          <span>ISP</span>
+          <strong>{meta?.isp ?? "-"}</strong>
+        </div>
+      </div>
+
+      <div className="signal-metrics">
+        <div>
+          <span>真延迟</span>
+          <strong>{formatLatency(metrics?.delay?.latency_ms ?? null)}</strong>
+        </div>
+        <div>
+          <span>tcping</span>
+          <strong>{formatLatency(metrics?.tcping?.latency_ms ?? null)}</strong>
+        </div>
+        <div>
+          <span>带宽</span>
+          <strong>{formatThroughput(averageMbps)}</strong>
+        </div>
+        <div>
+          <span>DNS</span>
+          <strong>{formatStatusValue(meta?.dns_leak)}</strong>
+        </div>
+      </div>
+
+      <div className="signal-unlocks">
+        <span>解锁 {unlockedCount}/4</span>
+        <div>
+          {unlockItems.map(([label, value]) => (
+            <em className={isPositiveStatus(value) ? "ok" : ""} key={label}>
+              {label}
+            </em>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function TaskSidebar({
   tasks,
   selectedTaskId,
@@ -934,6 +1034,8 @@ function App() {
             {error}
           </div>
         )}
+
+        <SignalBoard selected={selected} detail={detail} stats={stats} />
 
         <div className="metric-grid">
           <MetricCard icon={<Server size={20} />} label="节点总数" value={`${stats?.total_nodes ?? 0}`} />

@@ -1,20 +1,24 @@
-.venv/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-
 data/
 runtime/
 configs/config.yaml
 configs/clash.yaml
 .env
+*.env
 ._*
 **/._*
 
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
-app/static/
+web/static/
+
+bin/
+coverage.out
+
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
 
 .DS_Store
 npm-debug.log*

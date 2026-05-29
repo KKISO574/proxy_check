@@ -78,6 +78,7 @@ export interface MonitorTask {
   source_url: string;
   enabled: boolean;
   interval_seconds: number;
+  advanced_probes_enabled: boolean;
   status: NodeStatus;
   node_count: number;
   last_refresh_at: string | null;
@@ -96,6 +97,7 @@ export interface TaskPayload {
   source_url: string;
   interval_seconds: number;
   enabled?: boolean;
+  advanced_probes_enabled?: boolean;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

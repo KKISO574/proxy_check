@@ -5,13 +5,16 @@ import {
   AlertTriangle,
   CheckCircle2,
   CirclePause,
+  Download,
   Gauge,
   Pencil,
   Plus,
   RefreshCw,
   Search,
   Server,
+  ShieldCheck,
   Trash2,
+  UnlockKeyhole,
   XCircle
 } from "lucide-react";
 import {
@@ -56,6 +59,19 @@ const DEFAULT_CHART_METRICS: ChartMetric[] = [
   { key: "tcping", label: "tcping", color: "#2563eb" }
 ];
 
+const METRIC_LABELS: Record<string, string> = {
+  delay: "真延迟",
+  tcping: "tcping",
+  tls_handshake: "TLS 握手",
+  http_rtt: "HTTP RTT",
+  jitter: "抖动",
+  packet_loss: "丢包率",
+  exit_geo: "出口画像",
+  miaospeed_bandwidth: "带宽",
+  miaospeed_dns_leak: "DNS 泄漏",
+  miaospeed_unlock: "解锁"
+};
+
 function isPresent(value: string | null | undefined): value is string {
   return Boolean(value);
 }
@@ -69,6 +85,31 @@ function formatLatency(value: number | null): string {
 function formatScore(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "-";
   return `${Math.round(value)}`;
+}
+
+function formatThroughput(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-";
+  if (value >= 1000) return `${(value / 1000).toFixed(2)} Gbps`;
+  return `${value.toFixed(value >= 100 ? 0 : 1)} Mbps`;
+}
+
+function formatStatusValue(value: string | null | undefined): string {
+  return value || "-";
+}
+
+function parseMetricData(data: string | null | undefined): Record<string, unknown> {
+  if (!data) return {};
+  try {
+    const parsed = JSON.parse(data);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function numberFromData(data: Record<string, unknown>, key: string): number | null {
+  const value = data[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function formatTime(value: string | null): string {
@@ -221,18 +262,20 @@ function TaskForm({
   saving
 }: {
   task: MonitorTask | null;
-  onSubmit: (values: { name: string; source_url: string; interval_seconds: number }) => Promise<void>;
+  onSubmit: (values: { name: string; source_url: string; interval_seconds: number; advanced_probes_enabled: boolean }) => Promise<void>;
   onCancel: () => void;
   saving: boolean;
 }) {
   const [name, setName] = useState(task?.name ?? "");
   const [sourceUrl, setSourceUrl] = useState(task?.source_url ?? "");
   const [interval, setInterval] = useState(`${task?.interval_seconds ?? 60}`);
+  const [advancedProbesEnabled, setAdvancedProbesEnabled] = useState(task?.advanced_probes_enabled ?? false);
 
   useEffect(() => {
     setName(task?.name ?? "");
     setSourceUrl(task?.source_url ?? "");
     setInterval(`${task?.interval_seconds ?? 60}`);
+    setAdvancedProbesEnabled(task?.advanced_probes_enabled ?? false);
   }, [task]);
 
   async function handleSubmit(event: FormEvent) {
@@ -240,7 +283,8 @@ function TaskForm({
     await onSubmit({
       name: name.trim(),
       source_url: sourceUrl.trim(),
-      interval_seconds: Math.max(10, Number(interval) || 60)
+      interval_seconds: Math.max(10, Number(interval) || 60),
+      advanced_probes_enabled: advancedProbesEnabled
     });
   }
 
@@ -269,6 +313,14 @@ function TaskForm({
             value={interval}
             onChange={(event) => setInterval(event.target.value)}
           />
+        </label>
+        <label className="toggle-field">
+          <input
+            type="checkbox"
+            checked={advancedProbesEnabled}
+            onChange={(event) => setAdvancedProbesEnabled(event.target.checked)}
+          />
+          <span>高级探测</span>
         </label>
       </div>
       <div className="form-actions">
@@ -466,6 +518,55 @@ function MetaPanel({ detail }: { detail: NodeDetail | null }) {
   );
 }
 
+function AdvancedProbePanel({ detail }: { detail: NodeDetail | null }) {
+  const meta = detail?.meta;
+  const bandwidth = detail?.metrics.miaospeed_bandwidth;
+  const bandwidthData = parseMetricData(bandwidth?.data);
+  const averageMbps = bandwidth?.value ?? numberFromData(bandwidthData, "average_mbps");
+  const maxMbps = numberFromData(bandwidthData, "max_mbps");
+  const unlockItems = [
+    ["Netflix", meta?.netflix_unlock],
+    ["Disney+", meta?.disney_unlock],
+    ["OpenAI", meta?.openai_unlock],
+    ["YouTube", meta?.youtube_unlock]
+  ];
+
+  return (
+    <section className="advanced-panel">
+      <div className="panel-title">
+        <h3>高级探测</h3>
+        <span>{detail?.metrics.miaospeed_bandwidth || meta?.dns_leak ? "已有结果" : "待检测"}</span>
+      </div>
+      <div className="advanced-summary">
+        <div className="advanced-card">
+          <div className="advanced-icon">
+            <ShieldCheck size={16} />
+          </div>
+          <span>DNS 泄漏</span>
+          <strong>{formatStatusValue(meta?.dns_leak)}</strong>
+        </div>
+        <div className="advanced-card">
+          <div className="advanced-icon">
+            <Download size={16} />
+          </div>
+          <span>平均带宽</span>
+          <strong>{formatThroughput(averageMbps)}</strong>
+          <small>峰值 {formatThroughput(maxMbps)}</small>
+        </div>
+      </div>
+      <div className="unlock-grid">
+        {unlockItems.map(([label, value]) => (
+          <div className="unlock-item" key={label}>
+            <UnlockKeyhole size={14} />
+            <span>{label}</span>
+            <strong>{formatStatusValue(value)}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function DetailPane({
   selected,
   detail,
@@ -489,7 +590,7 @@ function DetailPane({
       if (predefined) return predefined;
       return {
         key,
-        label: key,
+        label: METRIC_LABELS[key] ?? key,
         color: ["#7c3aed", "#dc2626", "#0891b2", "#ca8a04"][index % 4]
       };
     });
@@ -525,6 +626,7 @@ function DetailPane({
 
           <ScorePanel detail={detail} />
           <MetaPanel detail={detail} />
+          <AdvancedProbePanel detail={detail} />
 
           {chartMetrics.map((metric) => (
             <ChartPanel
@@ -704,7 +806,7 @@ function App() {
 
   const selected = nodes.find((node) => node.id === selectedId) ?? null;
 
-  async function handleTaskSubmit(values: { name: string; source_url: string; interval_seconds: number }) {
+  async function handleTaskSubmit(values: { name: string; source_url: string; interval_seconds: number; advanced_probes_enabled: boolean }) {
     setSavingTask(true);
     try {
       const response = editingTask

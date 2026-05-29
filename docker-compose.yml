@@ -9,6 +9,8 @@ services:
       - "${APP_PORT:-8000}:8000"
     environment:
       MIHOMO_SECRET: ${MIHOMO_SECRET:-proxy_check_secret}
+      MIAOSPEED_TOKEN: ${MIAOSPEED_TOKEN:-}
+      MIAOSPEED_BUILD_TOKENS: ${MIAOSPEED_BUILD_TOKENS:-}
       PROXY_CHECK_CONFIG: /app/configs/config.yaml
     volumes:
       - ./configs/config.docker.yaml:/app/configs/config.yaml:ro

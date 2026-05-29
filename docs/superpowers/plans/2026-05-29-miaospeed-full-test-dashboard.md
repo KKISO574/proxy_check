@@ -48,8 +48,8 @@ The service list is intentionally data-driven: services without a configured scr
   - Adds a dedicated `RunAdvancedTask` path that runs only advanced probers and never runs during normal scheduler loops.
 - Modify: `backend/internal/api/server.go`
   - Adds `POST /api/tasks/{id}/miaospeed/run`, `GET /api/tasks/{id}/miaospeed/results`, and `GET /api/miaospeed/catalog`.
-- Modify: `backend/internal/storage/models.go` and `backend/internal/storage/repository.go`
-  - Adds response structs and query helpers that parse latest `miaospeed_full` JSON per node.
+- Modify: `backend/internal/storage/models.go`
+  - Adds response structs for parsed latest `miaospeed_full` JSON per node.
 - Modify: `frontend/src/api.ts`
   - Adds MiaoSpeed catalog/result/run types and API functions.
 - Modify: `frontend/src/main.tsx`
@@ -716,7 +716,6 @@ git commit -m "feat: add miaospeed full test prober"
 - Modify: `backend/internal/api/server.go`
 - Modify: `backend/internal/api/server_test.go`
 - Modify: `backend/internal/storage/models.go`
-- Modify: `backend/internal/storage/repository.go`
 - Modify: `backend/internal/storage/repository_test.go`
 
 - [ ] **Step 1: Write service test for advanced-only runs**
@@ -725,19 +724,52 @@ Add to `backend/internal/probe/service_test.go`:
 
 ```go
 func TestRunAdvancedTaskRunsOnlyAdvancedProbers(t *testing.T) {
-	repo := newFakeRepository()
-	repo.tasks = []storage.Task{{ID: 1, Enabled: true, AdvancedProbesEnabled: true, IntervalSeconds: 60}}
-	repo.nodes = []storage.Node{{ID: 9, TaskID: intPointer(1), Name: "node-a", Status: "unknown"}}
-	normal := fixedProber{metric: "delay", success: true}
-	advanced := fixedAdvancedProber{metric: "miaospeed_full", success: true}
-	service := NewService(repo, Options{Probers: []Prober{normal, advanced}})
+	dbPath := seedServiceSQLite(t)
+	repo, err := storage.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer repo.Close()
+	enabled := true
+	if _, err := repo.UpdateTask(1, storage.TaskPatch{AdvancedProbesEnabled: &enabled}); err != nil {
+		t.Fatalf("enable advanced probes: %v", err)
+	}
+	service := NewService(repo, Options{
+		Probers: []Prober{
+			StaticProber(func(storage.Node) []storage.ProbeResultInput {
+				return []storage.ProbeResultInput{{Metric: "delay", Target: "delay-url", Success: true}}
+			}),
+			AdvancedStaticProber(func(storage.Node) []storage.ProbeResultInput {
+				return []storage.ProbeResultInput{{Metric: "miaospeed_full", Target: "full", Success: true}}
+			}),
+		},
+	})
 
 	summary, err := service.RunAdvancedTask(1)
 	if err != nil {
 		t.Fatalf("run advanced: %v", err)
 	}
-	if summary.Results != 1 || repo.saved[0].results[0].Metric != "miaospeed_full" {
-		t.Fatalf("advanced run saved wrong results: %#v summary=%#v", repo.saved, summary)
+	if summary.Nodes != 2 || summary.Results != 2 || summary.Errors != 0 {
+		t.Fatalf("advanced run summary = %#v", summary)
+	}
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open check db: %v", err)
+	}
+	defer db.Close()
+	var normalCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM probe_results WHERE metric = 'delay'").Scan(&normalCount); err != nil {
+		t.Fatalf("count normal results: %v", err)
+	}
+	if normalCount != 0 {
+		t.Fatalf("RunAdvancedTask saved %d normal results", normalCount)
+	}
+	var advancedCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM probe_results WHERE metric = 'miaospeed_full'").Scan(&advancedCount); err != nil {
+		t.Fatalf("count advanced results: %v", err)
+	}
+	if advancedCount != 2 {
+		t.Fatalf("RunAdvancedTask saved %d advanced results", advancedCount)
 	}
 }
 ```
@@ -885,6 +917,10 @@ func BuildMiaoSpeedResultGrid(nodes []storage.Node) storage.MiaoSpeedResultGrid 
 		if err := json.Unmarshal([]byte(*metric.Data), &raw); err != nil {
 			raw = map[string]any{"decode_error": err.Error()}
 		}
+		var dnsLeak *string
+		if node.Meta != nil {
+			dnsLeak = node.Meta.DNSLeak
+		}
 		rows = append(rows, storage.MiaoSpeedNodeResult{
 			NodeID:       node.ID,
 			NodeName:     node.Name,
@@ -894,13 +930,44 @@ func BuildMiaoSpeedResultGrid(nodes []storage.Node) storage.MiaoSpeedResultGrid 
 			UploadMbps:   floatPtrFromAny(raw["upload_mbps"]),
 			HTTPCode:     stringFromAny(raw["http_code"]),
 			PacketLoss:   floatPtrFromAny(raw["packet_loss"]),
-			DNSLeak:      node.Meta.DNSLeak,
+			DNSLeak:      dnsLeak,
 			Services:     stringMapFromAny(raw["services"]),
 			Raw:          raw,
 			CreatedAt:    &metric.CreatedAt,
 		})
 	}
 	return storage.MiaoSpeedResultGrid{Rows: rows}
+}
+
+func floatPtrFromAny(value any) *float64 {
+	switch typed := value.(type) {
+	case float64:
+		return &typed
+	case int:
+		converted := float64(typed)
+		return &converted
+	default:
+		return nil
+	}
+}
+
+func stringFromAny(value any) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprint(value)
+}
+
+func stringMapFromAny(value any) map[string]string {
+	raw, ok := value.(map[string]any)
+	if !ok {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(raw))
+	for key, item := range raw {
+		out[key] = fmt.Sprint(item)
+	}
+	return out
 }
 ```
 

@@ -59,6 +59,14 @@ const DEFAULT_CHART_METRICS: ChartMetric[] = [
   { key: "tcping", label: "tcping", color: "#2563eb" }
 ];
 
+const EMPTY_STATS: Stats = {
+  total_nodes: 0,
+  available_nodes: 0,
+  down_nodes: 0,
+  unknown_nodes: 0,
+  average_delay_ms: null
+};
+
 const METRIC_LABELS: Record<string, string> = {
   delay: "真延迟",
   tcping: "tcping",
@@ -798,6 +806,14 @@ function App() {
     setSelectedId(nodeId);
   }
 
+  function clearOverview() {
+    setNodes([]);
+    setStats(EMPTY_STATS);
+    selectNodeId(null);
+    setDetail(null);
+    setHistories({});
+  }
+
   async function loadTasks(nextSelectedId = selectedTaskIdRef.current) {
     const nextTasks = await fetchTasks();
     setTasks(nextTasks);
@@ -830,6 +846,11 @@ function App() {
   async function loadAll() {
     try {
       const taskId = await loadTasks();
+      if (taskId === null) {
+        clearOverview();
+        setLoading(false);
+        return;
+      }
       await loadOverview(taskId);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
@@ -847,6 +868,11 @@ function App() {
     selectNodeId(null);
     setDetail(null);
     setHistories({});
+    if (selectedTaskId === null) {
+      clearOverview();
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     void loadOverview(selectedTaskId);
   }, [selectedTaskId]);

@@ -99,6 +99,14 @@ func BuildProbers(settings config.Settings, delayClient DelayClient, dial Socks5
 				Client:   newMiaoSpeedClient(settings.MiaoSpeed),
 				Store:    metaStore,
 			})
+		case "miaospeed_full":
+			if !settings.MiaoSpeed.Enabled {
+				continue
+			}
+			probers = append(probers, MiaoSpeedFullProber{
+				Settings: settings.MiaoSpeed,
+				Client:   newMiaoSpeedClient(settings.MiaoSpeed),
+			})
 		}
 	}
 	return probers

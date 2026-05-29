@@ -82,9 +82,23 @@ func TestBuildProbersConfiguresMiaoSpeedClientSigning(t *testing.T) {
 	}
 }
 
+func TestBuildProbersRegistersMiaoSpeedFullWhenEnabled(t *testing.T) {
+	settings := config.DefaultSettings()
+	settings.Probe.Dimensions = []string{"miaospeed_full"}
+	settings.MiaoSpeed.Enabled = true
+
+	probers := BuildProbers(settings, failingDelayClient{err: errTestProbe}, nil, staticDelaySamples{})
+	if len(probers) != 1 {
+		t.Fatalf("expected one prober, got %d", len(probers))
+	}
+	if _, ok := probers[0].(MiaoSpeedFullProber); !ok {
+		t.Fatalf("expected miaospeed full prober, got %T", probers[0])
+	}
+}
+
 func TestBuildProbersSkipsMiaoSpeedDimensionsWhenDisabled(t *testing.T) {
 	settings := config.DefaultSettings()
-	settings.Probe.Dimensions = []string{"delay", "miaospeed_bandwidth", "miaospeed_dns_leak", "miaospeed_unlock"}
+	settings.Probe.Dimensions = []string{"delay", "miaospeed_bandwidth", "miaospeed_dns_leak", "miaospeed_unlock", "miaospeed_full"}
 	settings.MiaoSpeed.Enabled = false
 
 	probers := BuildProbers(settings, failingDelayClient{err: errTestProbe}, nil, staticDelaySamples{})

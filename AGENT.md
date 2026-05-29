@@ -112,6 +112,21 @@ proxy_check/
 - 验证 Netflix、Disney、OpenAI、YouTube 等解锁脚本输出。
 - 将 MiaoSpeed 结果稳定写入 `probe_results` 与 `node_meta`。
 
+### P1 MiaoSpeed 全量测试与结果图
+
+目标对齐参考结果图，把 MiaoSpeed 从“少量高级探测补充”升级为可从前端手动控制的全量测试工作台：
+
+- 后端新增 `miaospeed_full` 高级探测维度，集中调用 AirportR/MiaoSpeed 的下载、上传、HTTP/RTT 质量、
+  丢包、HTTP code、劫持检测、UDP/NAT、Geo、DNS 和服务解锁矩阵。
+- 前端新增“运行高级测试”入口，允许用户对单个任务手动触发 MiaoSpeed 全量测试；普通 60 秒轮询仍不自动跑高流量测试。
+- 结果页按参考图做成密集矩阵：节点、类型、状态、下载/上传速度条、DNS、网络质量、流媒体/服务解锁状态按列展示。
+- 流媒体和服务解锁走 MiaoSpeed `TEST_SCRIPT`，脚本从 `runtime/miaospeed/scripts/` 或配置字段加载；
+  未配置脚本的服务显示 `未配置`，失败显示错误状态，不伪造结果。
+- 默认服务列覆盖 Netflix、Disney+、YouTube、TikTok、OpenAI、Google、GitHub、Telegram、Spotify、Steam、
+  Bilibili、Abema、DAZN、Hulu、Prime Video、HBO Max、Bahamut、BBC iPlayer、Claude、Gemini。
+- 前端支持服务列选择、节点详情图表、状态色块、速度条和结果 PNG 导出，便于形成类似参考图的可分享测试结果图。
+- 详细执行计划见 `docs/superpowers/plans/2026-05-29-miaospeed-full-test-dashboard.md`。
+
 ### P2 前端面板重设计
 
 视觉方向参考 `iplark.com` 和 `net.coffee`，但保持监控台效率：

@@ -7,6 +7,8 @@ default_output="runtime/bin/mihomo"
 user_agent="proxy-check-mihomo-downloader/0.2"
 download_connect_timeout="${DOWNLOAD_CONNECT_TIMEOUT:-10}"
 download_max_time="${DOWNLOAD_MAX_TIME:-120}"
+download_retry="${DOWNLOAD_RETRY:-3}"
+download_retry_delay="${DOWNLOAD_RETRY_DELAY:-2}"
 
 target_os=""
 target_arch=""
@@ -22,6 +24,7 @@ Download a Mihomo release binary into this project.
 If --version is omitted, the script follows GitHub's latest-release redirect.
 Set GITHUB_PROXY to prefix GitHub download URLs, for example https://proxy.example/.
 Set DOWNLOAD_CONNECT_TIMEOUT and DOWNLOAD_MAX_TIME to override curl timeouts.
+Set DOWNLOAD_RETRY and DOWNLOAD_RETRY_DELAY to override curl retry behavior.
 EOF
 }
 
@@ -90,7 +93,7 @@ version_tag() {
 
 resolve_latest_version() {
   local final_url
-  final_url="$(curl -fsSIL --connect-timeout "$download_connect_timeout" --max-time "$download_max_time" -A "$user_agent" -o /dev/null -w '%{url_effective}' "$release_latest_url")"
+  final_url="$(curl -fsSIL --retry "$download_retry" --retry-delay "$download_retry_delay" --retry-all-errors --connect-timeout "$download_connect_timeout" --max-time "$download_max_time" -A "$user_agent" -o /dev/null -w '%{url_effective}' "$release_latest_url")"
   case "$final_url" in
     */tag/*) echo "${final_url##*/tag/}" ;;
     *)
@@ -189,7 +192,7 @@ while IFS= read -r name; do
   tmp_path="${gz_path}.tmp"
 
   echo "Trying ${name}..."
-  if curl -fsSL --connect-timeout "$download_connect_timeout" --max-time "$download_max_time" -A "$user_agent" -o "$tmp_path" "$effective_url"; then
+  if curl -fsSL --retry "$download_retry" --retry-delay "$download_retry_delay" --retry-all-errors --connect-timeout "$download_connect_timeout" --max-time "$download_max_time" -A "$user_agent" -o "$tmp_path" "$effective_url"; then
     mv "$tmp_path" "$gz_path"
     selected_name="$name"
     selected_gz="$gz_path"

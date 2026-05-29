@@ -92,8 +92,9 @@ proxy_check/
 ### P1 MiaoSpeed 生产化
 
 - 已补官方 release 二进制下载脚本，默认写入 `runtime/bin/miaospeed`。
-- Mihomo/MiaoSpeed 下载脚本支持 `--print-url`、`GITHUB_PROXY`、`DOWNLOAD_CONNECT_TIMEOUT`
-  和 `DOWNLOAD_MAX_TIME`，用于网络受限环境预检、走代理下载或缩短失败等待。
+- Mihomo/MiaoSpeed 下载脚本支持 `--print-url`、`GITHUB_PROXY`、`DOWNLOAD_CONNECT_TIMEOUT`、
+  `DOWNLOAD_MAX_TIME`、`DOWNLOAD_RETRY` 和 `DOWNLOAD_RETRY_DELAY`，用于网络受限环境预检、
+  走代理下载、重试临时 SSL/连接错误或缩短失败等待。
 - Docker 配置已按 Go 托管 sidecar 模式使用 `ws://127.0.0.1:8766`，避免默认指向不存在的外部服务。
 - Go 托管 sidecar 现在要求 `miaospeed.enabled` 与 `miaospeed.manage_sidecar` 同时开启，避免全局关闭时仍启动进程。
 - Go 托管 sidecar 默认执行 `server` 并通过 `TOKEN`/`BIND` 环境变量传参，兼容正式 release 的普通 v4 参数形态；自定义 `miaospeed.args` 时按用户参数启动。

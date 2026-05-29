@@ -145,6 +145,8 @@ GITHUB_PROXY="https://your-github-proxy.example" \
   scripts/download_mihomo.sh --os linux --arch amd64 --version v1.19.24
 DOWNLOAD_CONNECT_TIMEOUT=5 DOWNLOAD_MAX_TIME=30 \
   scripts/download_mihomo.sh --os linux --arch amd64 --version v1.19.24
+DOWNLOAD_RETRY=5 DOWNLOAD_RETRY_DELAY=3 \
+  scripts/download_mihomo.sh --os linux --arch amd64 --version v1.19.24
 ```
 
 ## Docker 部署
@@ -327,6 +329,8 @@ scripts/download_miaospeed.sh --os linux --arch amd64 --version v4.3.9 --print-u
 GITHUB_PROXY="https://your-github-proxy.example" \
   scripts/download_miaospeed.sh --os linux --arch amd64 --version v4.3.9
 DOWNLOAD_CONNECT_TIMEOUT=5 DOWNLOAD_MAX_TIME=30 \
+  scripts/download_miaospeed.sh --os linux --arch amd64 --version v4.3.9
+DOWNLOAD_RETRY=5 DOWNLOAD_RETRY_DELAY=3 \
   scripts/download_miaospeed.sh --os linux --arch amd64 --version v4.3.9
 ```
 

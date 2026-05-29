@@ -28,9 +28,13 @@ assert_contains "$mihomo_urls" "https://proxy.example/https://github.com/MetaCub
 miaospeed_help="$("$repo_root/scripts/download_miaospeed.sh" --help)"
 assert_contains "$miaospeed_help" "DOWNLOAD_CONNECT_TIMEOUT"
 assert_contains "$miaospeed_help" "DOWNLOAD_MAX_TIME"
+assert_contains "$miaospeed_help" "DOWNLOAD_RETRY"
+assert_contains "$miaospeed_help" "DOWNLOAD_RETRY_DELAY"
 
 mihomo_help="$("$repo_root/scripts/download_mihomo.sh" --help)"
 assert_contains "$mihomo_help" "DOWNLOAD_CONNECT_TIMEOUT"
 assert_contains "$mihomo_help" "DOWNLOAD_MAX_TIME"
+assert_contains "$mihomo_help" "DOWNLOAD_RETRY"
+assert_contains "$mihomo_help" "DOWNLOAD_RETRY_DELAY"
 
 echo "download script URL tests passed"

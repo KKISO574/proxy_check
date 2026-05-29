@@ -97,7 +97,9 @@ proxy_check/
   走代理下载、重试临时 SSL/连接错误或缩短失败等待。
 - Docker 配置已按 Go 托管 sidecar 模式使用 `ws://127.0.0.1:8766`，避免默认指向不存在的外部服务。
 - Go 托管 sidecar 现在要求 `miaospeed.enabled` 与 `miaospeed.manage_sidecar` 同时开启，避免全局关闭时仍启动进程。
-- Go 托管 sidecar 默认执行 `server` 并通过 `TOKEN`/`BIND` 环境变量传参，兼容正式 release 的普通 v4 参数形态；自定义 `miaospeed.args` 时按用户参数启动。
+- Go 托管 sidecar 默认执行 `server -token ... -bind ...`；已用正式 4.3.9-Core
+  release 验证该参数形态可启动，且该版本不读取 `TOKEN`/`BIND` 环境变量；
+  自定义 `miaospeed.args` 时按用户参数启动。
 - Prober factory 现在只有在 `miaospeed.enabled: true` 时才注册 `miaospeed_*` 维度。
 - 已支持从文件加载 DNS/解锁脚本，推荐放在 `runtime/miaospeed/scripts/`。
 - 使用正式发布或正式构建的 MiaoSpeed 二进制验证生产 DNS leak 脚本。

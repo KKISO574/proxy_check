@@ -345,8 +345,8 @@ DOWNLOAD_RETRY=5 DOWNLOAD_RETRY_DELAY=3 \
 - 任务表单中开启"高级探测"；默认关闭，避免高流量/解锁类探测跟随普通轮询运行
 - 使用外部 MiaoSpeed 时配置 `miaospeed.ws_url`；需要 Go 后端托管时同时设置
   `miaospeed.enabled: true`、`miaospeed.manage_sidecar: true` 和 `miaospeed.bin`。`miaospeed.args`
-  为空时，Go 后端默认执行 `server`，并通过 `TOKEN` 和 `BIND`
-  环境变量传入 `MIAOSPEED_TOKEN` 与 `miaospeed.ws_url` 的 host:port；
+  为空时，Go 后端默认执行 `server -token ... -bind ...`，将 `MIAOSPEED_TOKEN`
+  与 `miaospeed.ws_url` 的 host:port 传给正式 4.3.9-Core release；
   如果你填写 `miaospeed.args`，后端会按自定义参数启动
 - 配置 `MIAOSPEED_TOKEN`；如果使用的 MiaoSpeed 二进制带 build token，还需要配置
   `MIAOSPEED_BUILD_TOKENS`，多个 token 用 `|` 分隔

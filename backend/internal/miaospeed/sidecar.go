@@ -55,16 +55,9 @@ func (m *SidecarManager) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	env, err := m.commandEnv()
-	if err != nil {
-		return err
-	}
 	cmd := exec.Command(m.options.Bin, args...)
 	if m.options.WorkDir != "" {
 		cmd.Dir = m.options.WorkDir
-	}
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
 	}
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
@@ -94,22 +87,11 @@ func (m *SidecarManager) commandArgs() ([]string, error) {
 	if m.options.Token == "" {
 		return nil, fmt.Errorf("miaospeed token is required when sidecar args are not configured")
 	}
-	return []string{"server"}, nil
-}
-
-func (m *SidecarManager) commandEnv() ([]string, error) {
-	env := []string{}
-	if m.options.Token != "" {
-		env = append(env, "TOKEN="+m.options.Token)
+	bind, err := bindAddressFromWSURL(m.options.WSURL)
+	if err != nil {
+		return nil, err
 	}
-	if m.options.WSURL != "" {
-		bind, err := bindAddressFromWSURL(m.options.WSURL)
-		if err != nil {
-			return nil, err
-		}
-		env = append(env, "BIND="+bind)
-	}
-	return env, nil
+	return []string{"server", "-token", m.options.Token, "-bind", bind}, nil
 }
 
 func bindAddressFromWSURL(wsURL string) (string, error) {

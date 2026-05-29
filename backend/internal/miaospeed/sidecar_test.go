@@ -53,7 +53,7 @@ func TestSidecarManagerDisabledIsNoop(t *testing.T) {
 	}
 }
 
-func TestSidecarManagerBuildsDefaultServerCommandAndEnvFromTokenAndWSURL(t *testing.T) {
+func TestSidecarManagerBuildsDefaultServerArgsFromTokenAndWSURL(t *testing.T) {
 	manager := NewSidecarManager(SidecarOptions{
 		Enabled: true,
 		Bin:     "/bin/miaospeed",
@@ -65,17 +65,9 @@ func TestSidecarManagerBuildsDefaultServerCommandAndEnvFromTokenAndWSURL(t *test
 	if err != nil {
 		t.Fatalf("command args: %v", err)
 	}
-	want := []string{"server"}
+	want := []string{"server", "-token", "server-token", "-bind", "127.0.0.1:8766"}
 	if strings.Join(args, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("unexpected default args: %#v", args)
-	}
-	env, err := manager.commandEnv()
-	if err != nil {
-		t.Fatalf("command env: %v", err)
-	}
-	wantEnv := []string{"TOKEN=server-token", "BIND=127.0.0.1:8766"}
-	if strings.Join(env, "\x00") != strings.Join(wantEnv, "\x00") {
-		t.Fatalf("unexpected default env: %#v", env)
 	}
 }
 

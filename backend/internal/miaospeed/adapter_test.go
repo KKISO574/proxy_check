@@ -2,9 +2,12 @@ package miaospeed
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -81,7 +84,39 @@ func TestBuildScriptRequestUsesMiaoSpeedScriptWireFormat(t *testing.T) {
 }
 
 func TestSignRequestMatchesMiaoSpeedChallengeAlgorithm(t *testing.T) {
-	request := Request{
+	request := signFixtureRequest()
+
+	signature, err := SignRequest("server-token", []string{"build-a", "build-b"}, request)
+	if err != nil {
+		t.Fatalf("sign request: %v", err)
+	}
+	const expected = "M7ekEIZ0PLxj8AUaScVti2fMdpQVHMXO9M5VOXTFy0GlQfBaippg9QBuqzBYTwkIZTy-VkSNgcRXhHMtCaoleQ=="
+	if signature != expected {
+		t.Fatalf("unexpected signature\nwant %s\n got %s", expected, signature)
+	}
+}
+
+func TestSignRequestIncludesEmptyBuildTokenSegmentByDefault(t *testing.T) {
+	request := signFixtureRequest()
+	signature, err := SignRequest("server-token", nil, request)
+	if err != nil {
+		t.Fatalf("sign request: %v", err)
+	}
+	expected := upstreamStyleSignature(t, "server-token", "", request)
+	if signature != expected {
+		t.Fatalf("unexpected default-build-token signature\nwant %s\n got %s", expected, signature)
+	}
+	explicitEmpty, err := SignRequest("server-token", []string{""}, request)
+	if err != nil {
+		t.Fatalf("sign request with explicit empty build token: %v", err)
+	}
+	if signature != explicitEmpty {
+		t.Fatalf("nil build tokens should match upstream empty build token behavior\nnil=%s\nempty=%s", signature, explicitEmpty)
+	}
+}
+
+func signFixtureRequest() Request {
+	return Request{
 		TaskID:         "task-1",
 		Invoker:        "proxy-check",
 		Vendor:         "Clash",
@@ -98,15 +133,26 @@ func TestSignRequestMatchesMiaoSpeedChallengeAlgorithm(t *testing.T) {
 			},
 		},
 	}
+}
 
-	signature, err := SignRequest("server-token", []string{"build-a", "build-b"}, request)
+func upstreamStyleSignature(t *testing.T, token string, buildToken string, request Request) string {
+	t.Helper()
+	wire := request.ToWire()
+	wire.Challenge = ""
+	wire.Vendor = ""
+	encoded, err := json.Marshal(wire)
 	if err != nil {
-		t.Fatalf("sign request: %v", err)
+		t.Fatalf("marshal request: %v", err)
 	}
-	const expected = "M7ekEIZ0PLxj8AUaScVti2fMdpQVHMXO9M5VOXTFy0GlQfBaippg9QBuqzBYTwkIZTy-VkSNgcRXhHMtCaoleQ=="
-	if signature != expected {
-		t.Fatalf("unexpected signature\nwant %s\n got %s", expected, signature)
+	hasher := sha512.New()
+	hasher.Write(encoded)
+	for _, segment := range append([]string{token}, strings.Split(strings.TrimSpace(buildToken), "|")...) {
+		if segment == "" {
+			segment = "SOME_TOKEN"
+		}
+		hasher.Write(hasher.Sum([]byte(segment)))
 	}
+	return base64.URLEncoding.EncodeToString(hasher.Sum(nil))
 }
 
 func TestWebSocketClientSignsRequestWhenTokenConfigured(t *testing.T) {

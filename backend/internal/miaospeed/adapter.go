@@ -355,6 +355,9 @@ func signWireRequest(token string, buildTokens []string, request wireRequest) (s
 	if err != nil {
 		return "", err
 	}
+	if len(buildTokens) == 0 {
+		buildTokens = []string{""}
+	}
 	hasher := sha512.New()
 	hasher.Write(encoded)
 	for _, segment := range append([]string{token}, buildTokens...) {

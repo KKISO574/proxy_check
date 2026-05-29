@@ -89,6 +89,45 @@ func TestBuildScriptRequestUsesMiaoSpeedScriptWireFormat(t *testing.T) {
 	}
 }
 
+func TestDefaultFullTestCatalogIncludesScreenshotServices(t *testing.T) {
+	catalog := DefaultServiceCatalog()
+	keys := make(map[string]bool, len(catalog))
+	for _, service := range catalog {
+		keys[service.Key] = true
+	}
+	for _, key := range []string{
+		"netflix", "disney", "youtube", "tiktok", "openai", "google",
+		"github", "telegram", "spotify", "steam", "bilibili", "abema",
+		"dazn", "hulu", "prime_video", "hbo_max", "bahamut", "bbc_iplayer",
+		"claude", "gemini",
+	} {
+		if !keys[key] {
+			t.Fatalf("missing service %s in catalog %#v", key, keys)
+		}
+	}
+}
+
+func TestMiaoSpeedMatrixPayloadHelpersReadUploadAndDownloadValues(t *testing.T) {
+	node := NodeResult{Matrices: map[string]MatrixResult{
+		MatrixSpeedAverage:  {Type: MatrixSpeedAverage, Payload: map[string]any{"Value": float64(1_250_000)}},
+		MatrixUSpeedAverage: {Type: MatrixUSpeedAverage, Payload: map[string]any{"Value": float64(625_000)}},
+		MatrixPacketLoss:    {Type: MatrixPacketLoss, Payload: map[string]any{"Value": float64(25)}},
+		MatrixHTTPCode:      {Type: MatrixHTTPCode, Payload: map[string]any{"Value": "204"}},
+	}}
+	if got := node.AverageSpeedMbps(); got == nil || *got != 10 {
+		t.Fatalf("download Mbps = %v", got)
+	}
+	if got := node.AverageUploadMbps(); got == nil || *got != 5 {
+		t.Fatalf("upload Mbps = %v", got)
+	}
+	if got := node.MatrixNumber(MatrixPacketLoss, "Value"); got == nil || *got != 25 {
+		t.Fatalf("packet loss = %v", got)
+	}
+	if got := node.MatrixString(MatrixHTTPCode, "Value"); got != "204" {
+		t.Fatalf("http code = %q", got)
+	}
+}
+
 func TestSignRequestMatchesMiaoSpeedChallengeAlgorithm(t *testing.T) {
 	request := signFixtureRequest()
 

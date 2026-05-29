@@ -158,17 +158,50 @@ type NodeResult struct {
 }
 
 func (n NodeResult) AverageSpeedMbps() *float64 {
-	if value := matrixMbpsValue(n.Matrices["SPEED_AVERAGE"], "Value"); value != nil {
+	if value := matrixMbpsValue(n.Matrices[MatrixSpeedAverage], "Value"); value != nil {
 		return value
 	}
-	return matrixMbpsValue(n.Matrices["SPEED_PER_SECOND"], "Average")
+	return matrixMbpsValue(n.Matrices[MatrixSpeedPerSecond], "Average")
 }
 
 func (n NodeResult) MaxSpeedMbps() *float64 {
-	if value := matrixMbpsValue(n.Matrices["SPEED_MAX"], "Value"); value != nil {
+	if value := matrixMbpsValue(n.Matrices[MatrixSpeedMax], "Value"); value != nil {
 		return value
 	}
-	return matrixMbpsValue(n.Matrices["SPEED_PER_SECOND"], "Max")
+	return matrixMbpsValue(n.Matrices[MatrixSpeedPerSecond], "Max")
+}
+
+func (n NodeResult) AverageUploadMbps() *float64 {
+	if value := matrixMbpsValue(n.Matrices[MatrixUSpeedAverage], "Value"); value != nil {
+		return value
+	}
+	return matrixMbpsValue(n.Matrices[MatrixUSpeedPerSecond], "Average")
+}
+
+func (n NodeResult) MaxUploadMbps() *float64 {
+	if value := matrixMbpsValue(n.Matrices[MatrixUSpeedMax], "Value"); value != nil {
+		return value
+	}
+	return matrixMbpsValue(n.Matrices[MatrixUSpeedPerSecond], "Max")
+}
+
+func (n NodeResult) MatrixNumber(matrixName string, key string) *float64 {
+	return matrixValue(n.Matrices[matrixName], key)
+}
+
+func (n NodeResult) MatrixString(matrixName string, keys ...string) string {
+	matrix := n.Matrices[matrixName]
+	switch payload := matrix.Payload.(type) {
+	case string:
+		return payload
+	case map[string]any:
+		for _, key := range keys {
+			if value, ok := payload[key]; ok && value != nil {
+				return fmt.Sprint(value)
+			}
+		}
+	}
+	return ""
 }
 
 type Frame struct {

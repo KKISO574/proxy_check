@@ -118,7 +118,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function withTask(path: string, taskId?: number | null): string {
-  if (!taskId) return path;
+  if (taskId === null || taskId === undefined) return path;
   const sep = path.includes("?") ? "&" : "?";
   return `${path}${sep}task_id=${taskId}`;
 }
